@@ -170,7 +170,8 @@ fn first_word(s: &str) -> &str {
     let bytes2 = &s[i1..].as_bytes();
 
     for (i, &item) in bytes2.iter().enumerate() {
-        if item == b' ' {
+        if item == b' ' || item == b'\t' 
+        {
             let i2 = i1 + i;
             let bytes3 = &s[i1..i2].as_bytes();
             return std::str::from_utf8(bytes3).unwrap();
@@ -239,6 +240,13 @@ mod tests {
     }
 
     #[test]
+    fn verify_first_word_with_initial_tab() {
+        let my_string = String::from("\tHello World!");
+        let word = first_word(&my_string);
+        assert_eq!("Hello", word);
+    }
+
+    #[test]
     fn verify_first_2_words_with_initial_space() {
         let my_string = String::from("    Hello    World!");
         let (word1, word2) = first_2_words(&my_string);
@@ -247,10 +255,19 @@ mod tests {
     }
 
     #[test]
-    fn verify_first_word_with_initial_tab() {
-        let my_string = String::from("\tHello World!");
-        let word = first_word(&my_string);
-        assert_eq!("Hello", word);
+    fn verify_first_2_words_with_initial_space_2() {
+        let my_string = String::from("\tHello\tWorld!");
+        let (word1, word2) = first_2_words(&my_string);
+        assert_eq!(Some("Hello") , word1);
+        assert_eq!(Some("World!"), word2);
+    }
+
+    #[test]
+    fn verify_first_2_words_with_initial_space_3() {
+        let my_string = String::from(" \t Hello \t World!");
+        let (word1, word2) = first_2_words(&my_string);
+        assert_eq!(Some("Hello") , word1);
+        assert_eq!(Some("World!"), word2);
     }
 
     #[test]
