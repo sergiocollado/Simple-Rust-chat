@@ -158,17 +158,36 @@ fn verify_arguments(args: &Vec<String>) {
     }
 }
 
-fn first_word(s: &str) -> &str  {
-    // reference: https://doc.rust-lang.org/book/ch04-03-slices.html
-    let bytes  = s.as_bytes();
+fn first_word(s: &str) -> &str {
+    let bytes = s.as_bytes();
+    let mut i1 : usize = 0;
 
     for (i, &item) in bytes.iter().enumerate() {
+        if !(item == b' ' || item == b'\t')
+        {
+            i1 = i;
+            break;
+        }
+    }
+
+    let bytes2 = &s[i1..].as_bytes();
+
+    for (i, &item) in bytes2.iter().enumerate() {
         if item == b' ' {
-            return &s[0..i];
+            let i2 = i1 + i;
+            let bytes3 = &s[i1..i2].as_bytes();
+            return std::str::from_utf8(bytes3).unwrap();
         }
     }
 
     &s[..]
+}
+
+fn first_2_words(s: &str) -> (Option<&str>, Option<&str>) {
+    let mut iter = s.split_ascii_whitespace();
+    let word1 = iter.next();
+    let word2 = iter.next();
+    (word1, word2)
 }
 
 fn check_command(command: &str, input: &str) -> bool {
@@ -217,7 +236,22 @@ mod tests {
 
     #[test]
     fn verify_first_word_with_initial_space() {
-        let my_string = String::from("  Hello World!");
+        let my_string = String::from("    Hello World!");
+        let word = first_word(&my_string);
+        assert_eq!("Hello", word);
+    }
+
+    #[test]
+    fn verify_first_2_words_with_initial_space() {
+        let my_string = String::from("    Hello    World!");
+        let (word1, word2) = first_2_words(&my_string);
+        assert_eq!(Some("Hello") , word1);
+        assert_eq!(Some("World!"), word2);
+    }
+
+    #[test]
+    fn verify_first_word_with_initial_tab() {
+        let my_string = String::from("\tHello World!");
         let word = first_word(&my_string);
         assert_eq!("Hello", word);
     }
