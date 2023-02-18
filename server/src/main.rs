@@ -123,11 +123,8 @@ fn main() {
     drop(listener);
 }
 
-//fn handle_client(i: usize, stream: &mut TcpStream) {
 fn handle_client(mut stream: TcpStream) {
     let mut data = [0 as u8; MAX_MESSAGE_SIZE]; // using 512 byte buffer
-    //let client = &clients.lock().unwrap()[i];
-    //while match clients.lock().unwrap()[i].stream.as_ref().unwrap().read(&mut data) {
     while match stream.read(&mut data) {
         Ok(size) => {
             // output in stdout
