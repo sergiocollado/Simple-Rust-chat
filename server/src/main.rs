@@ -27,30 +27,6 @@ const MAX_NAME_LEN: usize = 20;
 const MAX_MESSAGE_SIZE: usize = 512;
 const MAX_HOSTNAME_SIZE: usize = 50;
 const VERSION: &str = "Chat Server v0.1\n";
-
-#[derive(Debug)]
-struct Client {
-    stream: Option<TcpStream>,
-    name: Option<String>,
-    id: Option<u32>,
-}
-
-impl Client {
-    // reference: https://serokell.io/blog/structs-in-rust
-    // reference: https://stackoverflow.com/questions/57962168/how-to-set-a-field-in-a-struct-with-an-empty-value
-    fn new(stream: Option<TcpStream>, name: Option<String>, id: Option<u32>) -> Self {
-        Client { stream: stream, name: name, id: id}
-    }
-}
-
-impl Default for Client {
-    // this is needed so an array of Clients can be initialized fast
-    // ref: https://www.joshmcguigan.com/blog/array-initialization-rust/
-    fn default() -> Client {
-        Client { stream: None, name: None, id: None}
-    }
-}
-
 // https://www.sitepoint.com/rust-global-variables/
 // https://www.howtosolutions.net/2022/12/rust-create-global-variable-mutable-struct-without-unsafe-code-block/
 // static mut clients : Option<Arc<Mutex<[ Client ; MAX_CLIENTS]>>> = None;
@@ -278,14 +254,5 @@ mod tests {
     #[test]
     fn verify_join() {
         assert!(check_join("JOIN Alice"));
-    }
-
-    #[test]
-    fn verify_user() {
-        let name = String::from("user1");
-        let user1 = Client {stream: None, name: Some(name), id: Some(1u32)};
-        let user2 = Client::new(None, Some(String::from("user1")), Some(1u32));
-        assert_eq!(user1.name, user2.name);
-        assert_eq!(user1.id, user2.id);
     }
 }
