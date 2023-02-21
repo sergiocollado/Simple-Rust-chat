@@ -106,6 +106,15 @@ fn handle_client(mut stream: TcpStream) {
             // output in stdout
             std::io::stdout().write_all(&data[0..size]).expect("Error writing to stdout");
 
+            //let input = std::str::from_utf8(&data)
+             //   .expect("Wrong conversion from bytes to uft8");
+             //
+            let input = data;
+
+            if check_join_u8(&data)
+            {
+                println!("JOIN command detected");
+            }
             true
         },
         Err(_) => {
@@ -133,9 +142,16 @@ fn verify_arguments(args: &Vec<String>) {
 
 fn first_word(s: &str) -> &str {
     let bytes = s.as_bytes();
+
+    std::str::from_utf8(first_word_u8(&bytes))
+        .expect("fn first_word: wrong conversion u8 -> str")
+}
+
+fn first_word_u8(s: &[u8]) -> &[u8] {
     let mut i1 : usize = 0;
 
-    for (i, &item) in bytes.iter().enumerate() {
+
+    for (i, &item) in s.iter().enumerate() {
         if !(item == b' ' || item == b'\t')
         {
             i1 = i;
@@ -143,14 +159,14 @@ fn first_word(s: &str) -> &str {
         }
     }
 
-    let bytes2 = &s[i1..].as_bytes();
+    let s2 = &s[i1..];
 
-    for (i, &item) in bytes2.iter().enumerate() {
-        if item == b' ' || item == b'\t' 
+    for (i, &item) in s2.iter().enumerate() {
+        if item == b' ' || item == b'\t'
         {
             let i2 = i1 + i;
-            let bytes3 = &s[i1..i2].as_bytes();
-            return std::str::from_utf8(bytes3).unwrap();
+            std::str::from_utf8(&s[i1..i2]).unwrap();
+            return &s[i1..i2];
         }
     }
 
@@ -169,8 +185,17 @@ fn check_command(command: &str, input: &str) -> bool {
     command == first_word
 }
 
+fn check_command_u8(command: &str, input: &[u8]) -> bool {
+    let first_word_u8 = first_word_u8(input);
+    command == std::str::from_utf8(first_word_u8).unwrap()
+}
+
 fn check_join(input: &str) -> bool {
     check_command("JOIN", input)
+}
+
+fn check_join_u8(input: &[u8]) -> bool {
+    check_command_u8("JOIN", input)
 }
 
 fn handle_join(input: &str) {
