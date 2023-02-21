@@ -29,7 +29,6 @@ const MAX_HOSTNAME_SIZE: usize = 50;
 const VERSION: &str = "Chat Server v0.1\n";
 // https://www.sitepoint.com/rust-global-variables/
 // https://www.howtosolutions.net/2022/12/rust-create-global-variable-mutable-struct-without-unsafe-code-block/
-// static mut clients : Option<Arc<Mutex<[ Client ; MAX_CLIENTS]>>> = None;
 
 fn main() {
 
@@ -56,7 +55,6 @@ fn main() {
     loop { // you could do the same without a loop with `listener.incomming()`.
         match listener.accept() {
             Ok((stream, addr)) => {
-                //for (i, client) in clients.iter_mut().enumerate() { // TODO: ADD MUTEX
                 println!("New connection accepted: :{:?}, {:?}", stream, addr);
                 for i in 0..MAX_CLIENTS {
                     println!("search loop: {}", i);
@@ -73,13 +71,7 @@ fn main() {
 
                         thread::spawn(move || {
                             // connection suceeded
-                            handle_client(stream) // TODO: maybe I only have to pass the
-                                                           // index because otherwhise Im moving
-                                                           // the value of the clients???
-                                                           //
-                                                           //The problem is that &mut v[…] first mutably.
-                                                           //borrows v and then gives the mutable.
-                                                           //reference to the element to the change-function.
+                            handle_client(stream);
                         });
 
                         break; //once the new connection is registered, end the loop.
@@ -105,11 +97,6 @@ fn handle_client(mut stream: TcpStream) {
         Ok(size) => {
             // output in stdout
             std::io::stdout().write_all(&data[0..size]).expect("Error writing to stdout");
-
-            //let input = std::str::from_utf8(&data)
-             //   .expect("Wrong conversion from bytes to uft8");
-             //
-            let input = data;
 
             if check_join_u8(&data)
             {
