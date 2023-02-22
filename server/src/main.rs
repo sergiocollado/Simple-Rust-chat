@@ -267,4 +267,9 @@ mod tests {
     fn verify_join() {
         assert!(check_join("JOIN Alice"));
     }
+
+    #[test]
+    fn verify_join_u8() {
+        assert!(check_join_u8(String::from("  JOIN Alice").as_bytes()));
+    }
 }
