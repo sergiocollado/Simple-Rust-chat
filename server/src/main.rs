@@ -1,11 +1,14 @@
 // Rust languaje references:
 // - https://doc.rust-lang.org/book
+// - https://doc.rust-lang.org/reference/
 // - https://doc.rust-lang.org/rust-by-example
 // - https://web.mit.edu/rust-lang_v1.25/arch/amd64_ubuntu1404/share/doc/rust/html/book/first-edition/
 // - https://doc.rust-lang.org/nomicon/
 // - https://rust-lang.github.io/async-book/01_getting_started/01_chapter.html
 // - https://github.com/rust-lang/rustlings
 // - https://github.com/rust-lang/rustlings/tree/rustlings-1
+// - little book of rust macros: https://github.com/DanielKeep/tlborm
+// - ltltle book of rust macros updated: https://github.com/Veykril/tlborm
 //
 // references for coding the program:
 // https://doc.rust-lang.org/std/net/index.html#
@@ -14,6 +17,7 @@
 // https://github.com/aswathy-Packt/Network-Programming-with-Rust
 // https://stevedonovan.github.io/rust-gentle-intro/7-shared-and-networking.html#a-better-way-to-resolve-addresses
 // https://stackoverflow.com/questions/63350694/what-are-the-lifetimes-of-while-loop-arguments-using-a-mutex
+// https://www.sitepoint.com/rust-global-variables/
 
 use std::thread;
 use std::net::{TcpListener, TcpStream, Shutdown};
@@ -185,8 +189,15 @@ fn check_join_u8(input: &[u8]) -> bool {
     check_command_u8("JOIN", input)
 }
 
-fn handle_join(input: &str) {
+fn handle_join(input: &[u8]) {
     println!("Detected JOIN command {input:?}");
+    let (_, name) = first_2_words(std::str::from_utf8(input).unwrap());
+    if name.is_some()
+    {
+        // TODO: add the name to the names array
+        let name = name.unwrap();
+        println!("{} wants to jon to the chat", name);
+    }
 }
 
 fn check_who(input: &str) -> bool {
