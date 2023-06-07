@@ -63,7 +63,7 @@ fn main() {
                 for i in 0..MAX_CLIENTS {
                     println!("search loop: {}", i);
 
-                    if clientsStreams[i].is_none()
+                    if clientsStreams[i].is_none() // this is just for debugging. TODO: remove
                     {
                         println!("vector clients: {:?}", clientsStreams);
                     }
@@ -141,7 +141,6 @@ fn first_word(s: &str) -> &str {
 fn first_word_u8(s: &[u8]) -> &[u8] {
     let mut i1 : usize = 0;
 
-
     for (i, &item) in s.iter().enumerate() {
         if !(item == b' ' || item == b'\t')
         {
@@ -196,7 +195,7 @@ fn handle_join(input: &[u8]) {
     {
         // TODO: add the name to the names array
         let name = name.unwrap();
-        println!("{} wants to jon to the chat", name);
+        println!("{} wants to join to the chat", name);
     }
 }
 
