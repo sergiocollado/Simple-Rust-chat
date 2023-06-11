@@ -9,6 +9,7 @@
 // - https://github.com/rust-lang/rustlings/tree/rustlings-1
 // - little book of rust macros: https://github.com/DanielKeep/tlborm
 // - ltltle book of rust macros updated: https://github.com/Veykril/tlborm
+// - https://stevedonovan.github.io/rust-gentle-intro/6-error-handling.html
 //
 // references for coding the program:
 // https://doc.rust-lang.org/std/net/index.html#
@@ -50,8 +51,8 @@ fn main() {
 
     let mut clientsStreams : [Option<TcpStream>; MAX_CLIENTS] =
          Default::default();
-    let _clientsNames : Arc<Mutex<[Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS]>> =
-        Arc::new(Mutex::new( [ None; MAX_CLIENTS]));
+    let clientsNames : Arc<Mutex<[Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS]>> =
+        Arc::new(Mutex::new([None; MAX_CLIENTS]));
 
     // create a listening socket
     let listener = TcpListener::bind("0.0.0.0:".to_owned() + port).expect("Error: Bind failed!");
@@ -65,17 +66,18 @@ fn main() {
 
                     if clientsStreams[i].is_none() // this is just for debugging. TODO: remove
                     {
-                        println!("vector clients: {:?}", clientsStreams);
+                        println!("Debug log: vector clients: {:?}", clientsStreams);
                     }
 
                     if clientsStreams[i].is_none() {
                         println!("New client: pos({}): {:?}", i, addr);
 
                         clientsStreams[i] = Some(stream.try_clone().expect("failure trying to clone a stream"));
+                        let clientNamesArray = Arc::clone(&clientsNames);
 
                         thread::spawn(move || {
                             // connection suceeded
-                            handle_client(stream);
+                            handle_client(stream, i, clientNamesArray);
                         });
 
                         break; //once the new connection is registered, end the loop.
@@ -95,16 +97,20 @@ fn main() {
     drop(listener);
 }
 
-fn handle_client(mut stream: TcpStream) {
+fn handle_client(mut stream: TcpStream, index: usize, clientsArray: Arc<Mutex<[Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS]>>) {
     let mut data = [0 as u8; MAX_MESSAGE_SIZE]; // using 512 byte buffer
     while match stream.read(&mut data) {
         Ok(size) => {
             // output in stdout
             std::io::stdout().write_all(&data[0..size]).expect("Error writing to stdout");
 
+            // TODO: make a function that wraps execution of all commands: handle_commands()
             if check_join_u8(&data)
             {
                 println!("JOIN command detected");
+                let _indice : usize = index;
+                let _clients = Arc::clone(&clientsArray);
+                handle_join(&data, _indice, _clients);
             }
             true
         },
@@ -188,13 +194,23 @@ fn check_join_u8(input: &[u8]) -> bool {
     check_command_u8("JOIN", input)
 }
 
-fn handle_join(input: &[u8]) {
+fn handle_join(input: &[u8], index: usize, clientsArray: Arc<Mutex<[Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS]>>) {
     println!("Detected JOIN command {input:?}");
     let (_, name) = first_2_words(std::str::from_utf8(input).unwrap());
     if name.is_some()
     {
-        // TODO: add the name to the names array
         let name = name.unwrap();
+
+        let mut clientName : [u8; MAX_NAME_LEN] = [0; MAX_NAME_LEN];
+        let mut i: usize = 0;
+        while i < MAX_NAME_LEN && i < name.as_bytes().len()
+        {
+            clientName[i] = name.as_bytes()[i];
+            i = i + 1;
+        }
+
+        let mut arrayClients = clientsArray.lock().unwrap();
+        arrayClients[index] = Some(clientName);
         println!("{} wants to join to the chat", name);
     }
 }
