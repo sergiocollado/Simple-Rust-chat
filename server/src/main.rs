@@ -26,6 +26,7 @@ use std::io::{Read, Write};
 use std::env;
 use std::process;
 use std::sync::{Arc, Mutex};
+use std::str;
 
 const MAX_CLIENTS: usize = 20; // max clients cannot be >32, because the way the array initialization is done
 const MAX_NAME_LEN: usize = 20;
@@ -102,21 +103,33 @@ fn handle_client(mut stream: TcpStream, index: usize, clientsArray: Arc<Mutex<[O
     while match stream.read(&mut data) {
         Ok(size) => {
             // output in stdout
+            {
+                let nameArrayClone = Arc::clone(&clientsArray);
+                let nameArraysMutex = nameArrayClone.lock().unwrap();
+                let nameArrays : [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *nameArraysMutex;
+                let nameI : Option<[u8; MAX_NAME_LEN]> = nameArrays[index];
+                if nameI.is_some()
+                {
+                    let name = nameI.unwrap();
+                    print!("[{:?}]", str::from_utf8(&name).unwrap().to_string().trim_end());
+                }
+
+            }
+
             std::io::stdout().write_all(&data[0..size]).expect("Error writing to stdout");
 
             // TODO: make a function that wraps execution of all commands: handle_commands()
             if check_join_u8(&data)
             {
                 println!("JOIN command detected");
-                let _indice : usize = index;
+                let _indice : usize = index;               // TODO: simplify name
                 let _clients = Arc::clone(&clientsArray);
                 handle_join(&data, _indice, _clients);
             }
             true
         },
         Err(_) => {
-            println!("An error ocurred, terminating connection with {:?}", stream);
-            stream.shutdown(Shutdown::Both).unwrap();
+            println!("An error ocurred, terminating connection with {:?}", stream); stream.shutdown(Shutdown::Both).unwrap();
             false
         }
     } {}
