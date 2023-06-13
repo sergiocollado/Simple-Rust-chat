@@ -73,7 +73,9 @@ fn main() {
                     if clientsStreams[i].is_none() {
                         println!("New client: pos({}): {:?}", i, addr);
 
+                        //include/update this stream, in the array of clientsStreams
                         clientsStreams[i] = Some(stream.try_clone().expect("failure trying to clone a stream"));
+
                         let clientNamesArray = Arc::clone(&clientsNames);
 
                         thread::spawn(move || {
@@ -103,28 +105,27 @@ fn handle_client(mut stream: TcpStream, index: usize, clientsArray: Arc<Mutex<[O
     while match stream.read(&mut data) {
         Ok(size) => {
             // output in stdout
-            {
-                let nameArrayClone = Arc::clone(&clientsArray);
-                let nameArraysMutex = nameArrayClone.lock().unwrap();
-                let nameArrays : [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *nameArraysMutex;
-                let nameI : Option<[u8; MAX_NAME_LEN]> = nameArrays[index];
-                if nameI.is_some()
-                {
-                    let name = nameI.unwrap();
-                    print!("[{:?}]", str::from_utf8(&name).unwrap().to_string().trim_matches(char::from(0)));
-                }
-            }
+            //{
+            //    let nameArrayClone = Arc::clone(&clientsArray);
+            //    let nameArraysMutex = nameArrayClone.lock().unwrap();
+            //    let nameArrays : [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *nameArraysMutex;
+            //    let nameI : Option<[u8; MAX_NAME_LEN]> = nameArrays[index];
+            //    if nameI.is_some()
+            //    {
+            //        let name = nameI.unwrap();
+            //        print!("[{}]", str::from_utf8(&name).unwrap().to_string().trim_matches(char::from(0)));
+            //    }
+            //std::io::stdout().write_all(&data[0..size]).expect("Error writing to stdout");
+            //}
 
-            std::io::stdout().write_all(&data[0..size]).expect("Error writing to stdout");
+            let clients1 = Arc::clone(&clientsArray);
+            server_chat_output(&data, index, size, clients1);
 
-            // TODO: make a function that wraps execution of all commands: handle_commands()
-            if check_join_u8(&data)
-            {
-                println!("JOIN command detected");
-                let _indice : usize = index;               // TODO: simplify name
-                let _clients = Arc::clone(&clientsArray);
-                handle_join(&data, _indice, _clients);
-            }
+            let clients = Arc::clone(&clientsArray);
+            handle_commands(&data, index, clients);
+
+            //TODO: check the borrowing of those clients!
+
             true
         },
         Err(_) => {
@@ -221,9 +222,42 @@ fn handle_join(input: &[u8], index: usize, clientsArray: Arc<Mutex<[Option<[u8; 
             i = i + 1;
         }
 
-        let mut arrayClients = clientsArray.lock().unwrap();
-        arrayClients[index] = Some(clientName);
+        {
+            let mut arrayClients = clientsArray.lock().unwrap();
+            arrayClients[index] = Some(clientName);
+        }
+
         println!("{} wants to join to the chat", name);
+    }
+}
+
+fn handle_commands(input: &[u8], index: usize, clientsArray: Arc<Mutex<[Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS]>>)
+{
+    if check_join_u8(input)
+    {
+        println!("JOIN command detected");
+        let _indice : usize = index;               // TODO: simplify name
+        let _clients = Arc::clone(&clientsArray);
+        handle_join(input, _indice, _clients);
+    }
+}
+
+
+fn server_chat_output(input: &[u8], index: usize, size: usize, clientsArray: Arc<Mutex<[Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS]>>)
+{
+    // output in stdout
+    {
+        let nameArrayClone = Arc::clone(&clientsArray);
+        let nameArraysMutex = nameArrayClone.lock().unwrap();
+        let nameArrays : [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *nameArraysMutex;
+        let nameI : Option<[u8; MAX_NAME_LEN]> = nameArrays[index];
+        if nameI.is_some()
+        {
+            let name = nameI.unwrap();
+            print!("[{}]", str::from_utf8(&name).unwrap().to_string().trim_matches(char::from(0)));
+        }
+
+        std::io::stdout().write_all(&input[0..size]).expect("Error writing to stdout");
     }
 }
 
