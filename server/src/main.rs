@@ -111,9 +111,8 @@ fn handle_client(mut stream: TcpStream, index: usize, clientsArray: Arc<Mutex<[O
                 if nameI.is_some()
                 {
                     let name = nameI.unwrap();
-                    print!("[{:?}]", str::from_utf8(&name).unwrap().to_string().trim_end());
+                    print!("[{:?}]", str::from_utf8(&name).unwrap().to_string().trim_matches(char::from(0)));
                 }
-
             }
 
             std::io::stdout().write_all(&data[0..size]).expect("Error writing to stdout");
