@@ -105,6 +105,9 @@ fn handle_client(mut stream: TcpStream, index: usize, clients_array: Arc<Mutex<[
     while match stream.read(&mut data) {
         Ok(size) => {
 
+            println!("INPUT DATA: {:?}", data); // TODO: remove, just for debugging
+                                                //
+
             let clients1 = Arc::clone(&clients_array);
             server_chat_output(&data, index, size, clients1);
 
@@ -179,8 +182,9 @@ fn first_2_words(s: &str) -> (Option<&str>, Option<&str>) {
 
 fn check_command(command: &str, input: &str) -> bool {
     let first_word = first_word(input);
-    println!("check_command: {} == {}. result {}", command, first_word, command == first_word);
-    command == first_word
+    println!("check_command: {} == {}. result {}", command.trim(), first_word.trim(), command.trim() == first_word);
+    println!("size command: {}, size input: {}", command.len(), input.len());
+    command.trim() == first_word
 }
 
 fn check_command_u8(command: &str, input: &[u8]) -> bool {
