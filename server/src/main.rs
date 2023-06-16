@@ -60,16 +60,17 @@ fn main() {
     let listener = TcpListener::bind("0.0.0.0:".to_owned() + port).expect("Error: Bind failed!");
 
     loop { // you could do the same without a loop with `listener.incomming()`.
-        match listener.accept() {
+        match listener.accept() {                    // new connection accepted
             Ok((stream, addr)) => {
                 println!("New connection accepted: :{:?}, {:?}", stream, addr);
+
                 for i in 0..MAX_CLIENTS {
                     println!("search loop: {}", i);
 
-                    if clients_streams[i].is_none() // this is just for debugging. TODO: remove
-                    {
-                        println!("Debug log: vector clients: {:?}", clients_streams);
-                    }
+                   // if clients_streams[i].is_none() // this is just for debugging. TODO: remove
+                   // {
+                   //     println!("Debug log: vector clients: {:?}", clients_streams);
+                   // }
 
                     if clients_streams[i].is_none() {
                         println!("New client: pos({}): {:?}", i, addr);
@@ -78,11 +79,11 @@ fn main() {
                         clients_streams[i] = Some(stream.try_clone().expect("failure trying to clone a stream"));
 
                         let client_names_array = Arc::clone(&clients_names);
-                        let client_stream_array = Arc::clone(&clients_streams);
+                        //let client_stream_array = Arc::clone(&clients_streams);
 
                         thread::spawn(move || {
                             // connection suceeded
-                            handle_client(stream, i, client_names_array, client_stream_array);
+                            handle_client(stream, i, client_names_array); //, client_stream_array);
                         });
 
                         break; //once the new connection is registered, end the loop.
@@ -103,8 +104,8 @@ fn main() {
 }
 
 fn handle_client(mut stream: TcpStream, index: usize,
-                 clients_array: ClientsNameArray,
-                 _stream_array: ClientsStreamArray) {
+                 clients_array: ClientsNameArray)  {
+                 //_stream_array: ClientsStreamArray) {
     let mut data = [0 as u8; MAX_MESSAGE_SIZE]; // using 512 byte buffer
     while match stream.read(&mut data) {
         Ok(size) => {
