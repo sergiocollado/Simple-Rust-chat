@@ -32,9 +32,12 @@ const MAX_CLIENTS: usize = 20; // max clients cannot be >32, because the way the
 const MAX_NAME_LEN: usize = 20;
 const MAX_MESSAGE_SIZE: usize = 512;
 const MAX_HOSTNAME_SIZE: usize = 50;
-const VERSION: &str = "Chat Server v0.1\n";
+const VERSION: &str = "Simple Rust Chat Server v0.1\n";
 // https://www.sitepoint.com/rust-global-variables/
 // https://www.howtosolutions.net/2022/12/rust-create-global-variable-mutable-struct-without-unsafe-code-block/
+
+type ClientsStreamArray = [Option<TcpStream>; MAX_CLIENTS];
+type ClientsNameArray = Arc<Mutex<[Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS]>>;
 
 fn main() {
 
@@ -50,10 +53,8 @@ fn main() {
     // The primary downside to this method is it only works for arrays up to size 32.
     assert!(MAX_CLIENTS < 32);
 
-    let mut clients_streams : [Option<TcpStream>; MAX_CLIENTS] =
-         Default::default();
-    let clients_names : Arc<Mutex<[Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS]>> =
-        Arc::new(Mutex::new([None; MAX_CLIENTS]));
+    let mut clients_streams : ClientsStreamArray = Default::default();
+    let clients_names : ClientsNameArray = Arc::new(Mutex::new([None; MAX_CLIENTS]));
 
     // create a listening socket
     let listener = TcpListener::bind("0.0.0.0:".to_owned() + port).expect("Error: Bind failed!");
@@ -77,10 +78,11 @@ fn main() {
                         clients_streams[i] = Some(stream.try_clone().expect("failure trying to clone a stream"));
 
                         let client_names_array = Arc::clone(&clients_names);
+                        let client_stream_array = Arc::clone(&clients_streams);
 
                         thread::spawn(move || {
                             // connection suceeded
-                            handle_client(stream, i, client_names_array);
+                            handle_client(stream, i, client_names_array, client_stream_array);
                         });
 
                         break; //once the new connection is registered, end the loop.
@@ -100,13 +102,14 @@ fn main() {
     drop(listener);
 }
 
-fn handle_client(mut stream: TcpStream, index: usize, clients_array: Arc<Mutex<[Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS]>>) {
+fn handle_client(mut stream: TcpStream, index: usize,
+                 clients_array: ClientsNameArray,
+                 _stream_array: ClientsStreamArray) {
     let mut data = [0 as u8; MAX_MESSAGE_SIZE]; // using 512 byte buffer
     while match stream.read(&mut data) {
         Ok(size) => {
 
             println!("INPUT DATA: {:?}", data); // TODO: remove, just for debugging
-                                                //
 
             let clients1 = Arc::clone(&clients_array);
             server_chat_output(&data, index, size, clients1);
@@ -125,6 +128,28 @@ fn handle_client(mut stream: TcpStream, index: usize, clients_array: Arc<Mutex<[
             false
         }
     } {}
+}
+
+fn handle_commands(input: &[u8], index: usize, clients_array: ClientsNameArray )
+{
+    let str_input = str::from_utf8(input).unwrap();
+
+    if check_join_u8(input) {
+
+        println!("JOIN command detected");
+        let _indice : usize = index;               // TODO: simplify name
+        let _clients = Arc::clone(&clients_array);
+        handle_join(input, _indice, _clients);
+
+    } else if check_who(str_input) {
+
+        handle_who(&clients_array);
+    }
+}
+
+fn broadcast(_message: &str, _index: usize, _clients_streams : &ClientsStreamArray)
+{
+
 }
 
 fn verify_arguments(args: &Vec<String>) {
@@ -199,7 +224,7 @@ fn check_join_u8(input: &[u8]) -> bool {
     check_command_u8("JOIN", input)
 }
 
-fn handle_join(input: &[u8], index: usize, clients_array: Arc<Mutex<[Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS]>>) {
+fn handle_join(input: &[u8], index: usize, clients_array: ClientsNameArray) {
     println!("Detected JOIN command {input:?}"); // TODO: remove just for debugging
 
     // TODO: add check to verify the user has not JOINed previosly
@@ -222,28 +247,11 @@ fn handle_join(input: &[u8], index: usize, clients_array: Arc<Mutex<[Option<[u8;
         }
 
         println!("{} wants to join to the chat", name);
+        // TODO broadcast new join to the clients
     }
 }
 
-fn handle_commands(input: &[u8], index: usize, clients_array: Arc<Mutex<[Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS]>>)
-{
-    if check_join_u8(input)
-    {
-        println!("JOIN command detected");
-        let _indice : usize = index;               // TODO: simplify name
-        let _clients = Arc::clone(&clients_array);
-        handle_join(input, _indice, _clients);
-    }
-
-    let str_input = str::from_utf8(input).unwrap();
-
-    if check_who(str_input)
-    {
-        handle_who(&clients_array);
-    }
-}
-
-fn server_chat_output(input: &[u8], index: usize, size: usize, clients_array: Arc<Mutex<[Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS]>>)
+fn server_chat_output(input: &[u8], index: usize, size: usize, clients_array: ClientsNameArray)
 {
     // output in stdout
     let name_array_clone = Arc::clone(&clients_array);
@@ -263,7 +271,7 @@ fn check_who(input: &str) -> bool {
     check_command("WHO", input)
 }
 
-fn handle_who(clients_array: &Arc<Mutex<[Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS]>>) {
+fn handle_who(clients_array: &ClientsNameArray) {
 
     let name_array_clone = Arc::clone(clients_array);
     let name_arrays_mutex = name_array_clone.lock().unwrap();
