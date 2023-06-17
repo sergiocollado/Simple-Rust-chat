@@ -65,7 +65,6 @@ fn main() {
                 println!("New connection accepted: :{:?}, {:?}", stream, addr);
 
                 for i in 0..MAX_CLIENTS {
-                    println!("search loop: {}", i);
 
                    // if clients_streams[i].is_none() // this is just for debugging. TODO: remove
                    // {
@@ -75,18 +74,17 @@ fn main() {
                     if clients_streams.lock().unwrap()[i].is_none() {
                         println!("New client: pos({}): {:?}", i, addr);
 
-                        //include/update this stream, in the array of clientsStreams
-                        {
+                        {   //include/update this stream, in the array of clientsStreams
                             clients_streams.lock().unwrap()[i]
                                 = Some(stream.try_clone().expect("failure trying to clone a stream"));
                         }
 
                         let client_names_array = Arc::clone(&clients_names);
-                        //let client_stream_array = Arc::clone(&clients_streams);
+                        let client_stream_array = Arc::clone(&clients_streams);
 
                         thread::spawn(move || {
                             // connection suceeded
-                            handle_client(stream, i, client_names_array); //, client_stream_array);
+                            handle_client(stream, i, client_names_array, &client_stream_array);
                         });
 
                         break; //once the new connection is registered, end the loop.
@@ -107,19 +105,19 @@ fn main() {
 }
 
 fn handle_client(mut stream: TcpStream, index: usize,
-                 clients_array: ClientsNameArray)  {
-                 //_stream_array: ClientsStreamArray) {
+                 clients_array: ClientsNameArray,
+                 stream_array: &ClientsStreamArray) {
     let mut data = [0 as u8; MAX_MESSAGE_SIZE]; // using 512 byte buffer
     while match stream.read(&mut data) {
         Ok(size) => {
 
-            println!("INPUT DATA: {:?}", data); // TODO: remove, just for debugging
+            //println!("INPUT DATA: {:?}", data); // TODO: remove, just for debugging
 
             let clients1 = Arc::clone(&clients_array);
             server_chat_output(&data, index, size, clients1);
 
             let clients = Arc::clone(&clients_array);
-            handle_commands(&data, index, clients);
+            handle_commands(&data, index, clients, stream_array);
 
             //TODO: check the borrowing of those clients!
 
@@ -134,7 +132,7 @@ fn handle_client(mut stream: TcpStream, index: usize,
     } {}
 }
 
-fn handle_commands(input: &[u8], index: usize, clients_array: ClientsNameArray )
+fn handle_commands(input: &[u8], index: usize, clients_array: ClientsNameArray, stream_array: &ClientsStreamArray)
 {
     let str_input = str::from_utf8(input).unwrap();
 
@@ -148,12 +146,24 @@ fn handle_commands(input: &[u8], index: usize, clients_array: ClientsNameArray )
     } else if check_who(str_input) {
 
         handle_who(&clients_array);
+    } else {
+        broadcast(input, index, &clients_array, stream_array);
     }
 }
 
-fn broadcast(_message: &str, _index: usize, _clients_streams : &ClientsStreamArray)
+fn broadcast(message: &[u8], index: usize, clients_array: &ClientsNameArray, clients_streams : &ClientsStreamArray)
 {
+    for i in 0..MAX_CLIENTS {
+        if i != index && clients_array.lock().unwrap()[i].is_some() && clients_streams.lock().unwrap()[i].is_some() {
 
+            let clients_streams = Arc::clone(&clients_streams);
+            let mut stream_mutex = clients_streams.lock().unwrap();
+            let stream_option = &mut *stream_mutex;
+            let mut stream_i = stream_option[i].as_mut().unwrap().try_clone().expect("failed to clone a stream");
+
+            stream_i.write_all(message).expect("Failed to send data through a stream");
+        }
+    }
 }
 
 fn verify_arguments(args: &Vec<String>) {
