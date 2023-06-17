@@ -36,7 +36,7 @@ const VERSION: &str = "Simple Rust Chat Server v0.1\n";
 // https://www.sitepoint.com/rust-global-variables/
 // https://www.howtosolutions.net/2022/12/rust-create-global-variable-mutable-struct-without-unsafe-code-block/
 
-type ClientsStreamArray = [Option<TcpStream>; MAX_CLIENTS];
+type ClientsStreamArray = Arc<Mutex<[Option<TcpStream>; MAX_CLIENTS]>>;
 type ClientsNameArray = Arc<Mutex<[Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS]>>;
 
 fn main() {
@@ -53,7 +53,7 @@ fn main() {
     // The primary downside to this method is it only works for arrays up to size 32.
     assert!(MAX_CLIENTS < 32);
 
-    let mut clients_streams : ClientsStreamArray = Default::default();
+    let clients_streams : ClientsStreamArray = Arc::new(Mutex::new(Default::default()));
     let clients_names : ClientsNameArray = Arc::new(Mutex::new([None; MAX_CLIENTS]));
 
     // create a listening socket
@@ -72,11 +72,14 @@ fn main() {
                    //     println!("Debug log: vector clients: {:?}", clients_streams);
                    // }
 
-                    if clients_streams[i].is_none() {
+                    if clients_streams.lock().unwrap()[i].is_none() {
                         println!("New client: pos({}): {:?}", i, addr);
 
                         //include/update this stream, in the array of clientsStreams
-                        clients_streams[i] = Some(stream.try_clone().expect("failure trying to clone a stream"));
+                        {
+                            clients_streams.lock().unwrap()[i]
+                                = Some(stream.try_clone().expect("failure trying to clone a stream"));
+                        }
 
                         let client_names_array = Arc::clone(&clients_names);
                         //let client_stream_array = Arc::clone(&clients_streams);
@@ -92,8 +95,8 @@ fn main() {
                 }
                 println!("vector clients after the loop on clients: {:?}", clients_streams);
             },
-            Err(e) => {
-                println!("Error: couldn't get client {e:?}");
+            Err(error) => {
+                println!("Error: couldn't get client {error:?}");
                 break
             },
         }
