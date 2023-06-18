@@ -22,15 +22,17 @@ fn main() {
     let address = &args[1];
     let port = &args[2];
 
-    println!("address: {}", address); 
-    println!("port: {}", port); 
+    println!("address: {}", address);
+    println!("port: {}", port);
 
     let mut stream = TcpStream::connect(address.to_owned() + ":" + port).expect("Could not connect to the server");
 
     let mut input = String::new();
     let mut buffer : Vec<u8> = Vec::new();
 
-    loop {
+    // TODO: launch a thread that continuosly reads from server
+
+    loop {                // loop to read from the input and send to the server.
         input.clear();
         buffer.clear();
         io::stdin().read_line(&mut input).expect("Failed to read from stdin");
@@ -41,5 +43,4 @@ fn main() {
         reader.read_until(b'\n', &mut buffer).expect("Could not read into buffer");
         print!("{}", str::from_utf8(&buffer).expect("Could not write buffer as string"));
     }
-
 }
