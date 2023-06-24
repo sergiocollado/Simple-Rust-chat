@@ -26,26 +26,29 @@ fn main() {
     println!("address: {}", address);
     println!("port: {}", port);
 
-    let mut stream = TcpStream::connect(address.to_owned() + ":" + port).expect("Could not connect to the server");
+    let stream = TcpStream::connect(address.to_owned() + ":" + port).expect("Could not connect to the server");
 
-    let mut input = String::new();
-    let mut buffer : Vec<u8> = Vec::new();
+    //let mut input = String::new();
+    //let mut buffer : Vec<u8> = Vec::new();
 
     //let server_stream= stream.try_clone().expect("failure trying to clone a stream");
 
     handle_feedback(&stream);
 
-    loop {                // loop to read from the input and send to the server.
-        input.clear();
-        buffer.clear();
-        io::stdin().read_line(&mut input).expect("Failed to read from stdin");
-        stream.write(input.as_bytes()).expect("Failed to write to server");
+    //loop {                // loop to read from the input and send to the server.
+    //    input.clear();
+    //    buffer.clear();
+    //    io::stdin().read_line(&mut input).expect("Failed to read from stdin");
+    //    stream.write(input.as_bytes()).expect("Failed to write to server");
 
-        let mut reader = BufReader::new(&stream);
+    //    let mut reader = BufReader::new(&stream);
 
-        reader.read_until(b'\n', &mut buffer).expect("Could not read into buffer");
-        print!("{}", str::from_utf8(&buffer).expect("Could not write buffer as string"));
-    }
+    //    reader.read_until(b'\n', &mut buffer).expect("Could not read into buffer");
+    //    print!("{}", str::from_utf8(&buffer).expect("Could not write buffer as string"));
+    //}
+    //
+
+    read_text_and_send_to_server(&stream);
 }
 
 fn handle_feedback(inputstream: &TcpStream) {
@@ -55,4 +58,20 @@ fn handle_feedback(inputstream: &TcpStream) {
     });
 }
 
+fn read_text_and_send_to_server(mut stream: &TcpStream) {
 
+    let server_stream= stream.try_clone().expect("failure trying to clone a stream");
+    let mut input = String::new();
+    let mut buffer : Vec<u8> = Vec::new();
+
+    loop {                // loop to read from the input and send to the server.
+        input.clear();
+        buffer.clear();
+        io::stdin().read_line(&mut input).expect("Failed to read from stdin");
+        stream.write(input.as_bytes()).expect("Failed to write to server");
+
+        //let mut reader = BufReader::new(&server_stream);
+        //reader.read_until(b'\n', &mut buffer).expect("Could not read into buffer");
+        //print!("{}", str::from_utf8(&buffer).expect("Could not write buffer as string"));
+    }
+}
