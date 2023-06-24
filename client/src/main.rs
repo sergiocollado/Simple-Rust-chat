@@ -10,6 +10,7 @@ use std::net::{TcpStream};
 use std::str;
 use std::io::{self, BufRead, BufReader, Write};
 use std::{env, process};
+use std::thread;
 
 fn main() {
     let args : Vec<String> = env::args().collect();
@@ -30,7 +31,9 @@ fn main() {
     let mut input = String::new();
     let mut buffer : Vec<u8> = Vec::new();
 
-    // TODO: launch a thread that continuosly reads from server
+    //let server_stream= stream.try_clone().expect("failure trying to clone a stream");
+
+    handle_feedback(&stream);
 
     loop {                // loop to read from the input and send to the server.
         input.clear();
@@ -44,3 +47,12 @@ fn main() {
         print!("{}", str::from_utf8(&buffer).expect("Could not write buffer as string"));
     }
 }
+
+fn handle_feedback(inputstream: &TcpStream) {
+    let server_stream= inputstream.try_clone().expect("failure trying to clone a stream");
+    thread::spawn(move || {
+        println!("server reading loop");
+    });
+}
+
+
