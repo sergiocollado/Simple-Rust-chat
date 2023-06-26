@@ -276,6 +276,8 @@ fn server_chat_output(input: &[u8], index: usize, size: usize, clients_array: Cl
     {
         let name = name_i.unwrap();
         print!("[{}]", str::from_utf8(&name).unwrap().to_string().trim_matches(char::from(0)));
+
+        // TODO: here we have to broadcast to the rest of the clients the message
     }
 
     std::io::stdout().write_all(&input[0..size]).expect("Error writing to stdout");
