@@ -269,15 +269,23 @@ fn server_chat_output(input: &[u8], index: usize, size: usize, clients_array: Cl
 {
     // output in stdout
     let name_array_clone = Arc::clone(&clients_array);
-    let name_arrays_mutex = name_array_clone.lock().unwrap();
-    let name_arrays : [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_arrays_mutex;
-    let name_i : Option<[u8; MAX_NAME_LEN]> = name_arrays[index];
+    let name_array_mutex = name_array_clone.lock().unwrap();
+    let name_array : [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_array_mutex;
+    let name_i : Option<[u8; MAX_NAME_LEN]> = name_array[index];
     if name_i.is_some()
     {
         let name = name_i.unwrap();
+        let name_str = str::from_utf8(&name).unwrap().to_string().trim_matches(char::from(0));
         print!("[{}]", str::from_utf8(&name).unwrap().to_string().trim_matches(char::from(0)));
 
         // TODO: here we have to broadcast to the rest of the clients the message
+
+        for (i, client) in name_array.iter().enumerate() {
+            // loop all the names
+            if i != index {
+                //
+            }
+        }
     }
 
     std::io::stdout().write_all(&input[0..size]).expect("Error writing to stdout");
