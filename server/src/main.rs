@@ -31,8 +31,8 @@ use std::str;
 const MAX_CLIENTS: usize = 20; // max clients cannot be >32, because the way the array initialization is done
 const MAX_NAME_LEN: usize = 20;
 const MAX_MESSAGE_SIZE: usize = 512;
-const MAX_HOSTNAME_SIZE: usize = 50;
-const VERSION: &str = "Simple Rust Chat Server v0.1\n";
+const _MAX_HOSTNAME_SIZE: usize = 50;
+const _VERSION: &str = "Simple Rust Chat Server v0.1\n";
 // https://www.sitepoint.com/rust-global-variables/
 // https://www.howtosolutions.net/2022/12/rust-create-global-variable-mutable-struct-without-unsafe-code-block/
 
@@ -265,9 +265,8 @@ fn handle_join(input: &[u8], index: usize, clients_array: ClientsNameArray) {
     }
 }
 
-fn server_chat_output(input: &[u8], index: usize, size: usize, clients_array: ClientsNameArray)
-{
-    // output in stdout
+fn get_client_name_at_position_i(index: usize, clients_array: ClientsNameArray) -> Option<&str> {
+
     let name_array_clone = Arc::clone(&clients_array);
     let name_array_mutex = name_array_clone.lock().unwrap();
     let name_array : [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_array_mutex;
@@ -275,18 +274,41 @@ fn server_chat_output(input: &[u8], index: usize, size: usize, clients_array: Cl
     if name_i.is_some()
     {
         let name = name_i.unwrap();
-        let name_str = str::from_utf8(&name).unwrap().to_string().trim_matches(char::from(0));
-        print!("[{}]", str::from_utf8(&name).unwrap().to_string().trim_matches(char::from(0)));
+        return Some(std::str::from_utf8(&name).unwrap().trim_matches(char::from(0)));
+    }
+    None
+}
 
-        // TODO: here we have to broadcast to the rest of the clients the message
-
-        for (i, client) in name_array.iter().enumerate() {
-            // loop all the names
-            if i != index {
-                //
-            }
+fn server_chat_output(input: &[u8], index: usize, size: usize, clients_array: ClientsNameArray)
+{
+    let user_name : [u8; MAX_NAME_LEN] = Default::default();
+    // output in stdout
+    {
+        let name_array_clone = Arc::clone(&clients_array);
+        let name_array_mutex = name_array_clone.lock().unwrap();
+        let name_array : [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_array_mutex;
+        let name_i : Option<[u8; MAX_NAME_LEN]> = name_array[index];
+        if name_i.is_some()
+        {
+            let name = name_i.unwrap();
+            let name_str = str::from_utf8(&name).unwrap().to_string().trim_matches(char::from(0));
+            //print!("[{}]", str::from_utf8(&name).unwrap().to_string().trim_matches(char::from(0)));
+            let user_name = name.clone();
+            print!("[{}]", std::str::from_utf8(&user_name).unwrap().trim_matches(char::from(0)));
         }
     }
+
+    let user_name_str = std::str::from_utf8(&user_name).unwrap().trim_matches(char::from(0));
+
+    // TODO: here we have to broadcast to the rest of the clients the message
+
+   //for (i, client) in name_array.iter().enumerate() {
+   //     // loop all the names
+   //     if i != index {
+   //         let array_names_clone = Arc::clone(&clients_array);
+   //         let array_name_mutex = array_names_mutex;
+   //     }
+   //}
 
     std::io::stdout().write_all(&input[0..size]).expect("Error writing to stdout");
 }
