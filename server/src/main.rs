@@ -144,7 +144,6 @@ fn handle_commands(input: &[u8], index: usize, clients_array: ClientsNameArray, 
         handle_join(input, _indice, _clients);
 
     } else if check_who(str_input) {
-
         handle_who(&clients_array);
     } else {
         broadcast(input, index, &clients_array, stream_array);
@@ -260,23 +259,25 @@ fn handle_join(input: &[u8], index: usize, clients_array: ClientsNameArray) {
             array_clients[index] = Some(client_name);
         }
 
-        println!("{} wants to join to the chat", name);
+        println!("{} has joined the chat", name);
         // TODO broadcast new join to the clients
     }
 }
 
-fn get_client_name_at_position_i(index: usize, clients_array: ClientsNameArray) -> Option<&str> {
+fn get_client_name_at_position_i<'a>(index: usize, clients_array: &'a ClientsNameArray) -> Option<[u8; MAX_NAME_LEN]> {
 
     let name_array_clone = Arc::clone(&clients_array);
     let name_array_mutex = name_array_clone.lock().unwrap();
     let name_array : [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_array_mutex;
     let name_i : Option<[u8; MAX_NAME_LEN]> = name_array[index];
-    if name_i.is_some()
-    {
-        let name = name_i.unwrap();
-        return Some(std::str::from_utf8(&name).unwrap().trim_matches(char::from(0)));
-    }
-    None
+    name_i
+    //std::str::from_utf8(name_i);
+    //if name_i.is_some()
+    //{
+    //    let name = name_i.unwrap();
+    //    return Some(std::str::from_utf8(&name).unwrap().trim_matches(char::from(0)));
+    //}
+    //None
 }
 
 fn server_chat_output(input: &[u8], index: usize, size: usize, clients_array: ClientsNameArray)
@@ -294,7 +295,7 @@ fn server_chat_output(input: &[u8], index: usize, size: usize, clients_array: Cl
             let name_str = str::from_utf8(&name).unwrap().to_string().trim_matches(char::from(0));
             //print!("[{}]", str::from_utf8(&name).unwrap().to_string().trim_matches(char::from(0)));
             let user_name = name.clone();
-            print!("[{}]", std::str::from_utf8(&user_name).unwrap().trim_matches(char::from(0)));
+            print!("[{}] ", std::str::from_utf8(&user_name).unwrap().trim_matches(char::from(0)));
         }
     }
 
@@ -306,8 +307,7 @@ fn server_chat_output(input: &[u8], index: usize, size: usize, clients_array: Cl
    //     // loop all the names
    //     if i != index {
    //         let array_names_clone = Arc::clone(&clients_array);
-   //         let array_name_mutex = array_names_mutex;
-   //     }
+   //         let array_name_mutex = array_names_mutex; }
    //}
 
     std::io::stdout().write_all(&input[0..size]).expect("Error writing to stdout");
