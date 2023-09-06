@@ -136,10 +136,7 @@ fn handle_commands(input: &[u8], index: usize, clients_array: &ClientsNameArray,
     let str_input = str::from_utf8(input).unwrap();
 
     if check_join_u8(input) {
-
-        println!("JOIN command detected");
         let _indice : usize = index;               // TODO: simplify name
-        //let _clients = Arc::clone(&clients_array);
         handle_join(input, _indice, clients_array);
 
     } else if check_who(str_input) {
@@ -166,7 +163,11 @@ fn broadcast(message: &[u8], index: usize, clients_array: &ClientsNameArray, cli
                 stream_i.write_all(&name_i.unwrap()).expect("Failed to write name to the stream");
                 stream_i.write_all(&String::from("] ").as_bytes());
             }
-            stream_i.write_all(message).expect("Failed to send data through a stream");
+            stream_i.write_all(message).expect("Failed to send data through a stream");  // TODO:
+                                                                                         // move
+                                                                                         // into
+                                                                                         // the
+                                                                                         // guard
         }
     }
 }
@@ -286,6 +287,12 @@ fn get_client_name_at_position_i(index: &usize, clients_array: &ClientsNameArray
     //    return Some(std::str::from_utf8(&name).unwrap().trim_matches(char::from(0)));
     //}
     //None
+}
+
+fn remove_client_i(index: &usize, clients_array: &ClientsNameArray) {
+    let clients = Arc::clone(clients_array);
+    let mut array_clients = clients.lock().unwrap();
+    array_clients[*index] = None;
 }
 
 fn server_chat_output(input: &[u8], index: &usize, size: usize, clients_array: &ClientsNameArray)
