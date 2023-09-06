@@ -162,7 +162,9 @@ fn broadcast(message: &[u8], index: usize, clients_array: &ClientsNameArray, cli
             let name_i = get_client_name_at_position_i(&index, &clients_array);
             if name_i.is_some()
             {
+                stream_i.write_all(&String::from("[").as_bytes());
                 stream_i.write_all(&name_i.unwrap()).expect("Failed to write name to the stream");
+                stream_i.write_all(&String::from("] ").as_bytes());
             }
             stream_i.write_all(message).expect("Failed to send data through a stream");
         }
@@ -297,7 +299,7 @@ fn server_chat_output(input: &[u8], index: &usize, size: usize, clients_array: &
             let name = name_i.unwrap();
             let name_str = str::from_utf8(&name).unwrap().to_string().trim_matches(char::from(0));
             //print!("[{}]", str::from_utf8(&name).unwrap().to_string().trim_matches(char::from(0)));
-            let user_name = name.clone(); // TODO can I remove clone()? 
+            let user_name = name.clone(); // TODO can I remove clone()?
             print!("[{}] ", std::str::from_utf8(&user_name).unwrap().trim_matches(char::from(0)));
         }
     }
