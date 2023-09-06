@@ -113,11 +113,10 @@ fn handle_client(mut stream: TcpStream, index: usize,
 
             //println!("INPUT DATA: {:?}", data); // TODO: remove, just for debugging
 
-            let clients1 = Arc::clone(&clients_array);
-            server_chat_output(&data, index, size, clients1);
+            server_chat_output(&data, &index, size, &clients_array);
 
             let clients = Arc::clone(&clients_array);
-            handle_commands(&data, index, clients, stream_array);
+            handle_commands(&data, index, &clients, stream_array);
 
             //TODO: check the borrowing of those clients!
 
@@ -132,7 +131,7 @@ fn handle_client(mut stream: TcpStream, index: usize,
     } {}
 }
 
-fn handle_commands(input: &[u8], index: usize, clients_array: ClientsNameArray, stream_array: &ClientsStreamArray)
+fn handle_commands(input: &[u8], index: usize, clients_array: &ClientsNameArray, stream_array: &ClientsStreamArray)
 {
     let str_input = str::from_utf8(input).unwrap();
 
@@ -140,13 +139,13 @@ fn handle_commands(input: &[u8], index: usize, clients_array: ClientsNameArray, 
 
         println!("JOIN command detected");
         let _indice : usize = index;               // TODO: simplify name
-        let _clients = Arc::clone(&clients_array);
-        handle_join(input, _indice, _clients);
+        //let _clients = Arc::clone(&clients_array);
+        handle_join(input, _indice, clients_array);
 
     } else if check_who(str_input) {
-        handle_who(&clients_array);
+        handle_who(clients_array);
     } else {
-        broadcast(input, index, &clients_array, stream_array);
+        broadcast(input, index, clients_array, stream_array);
     }
 }
 
@@ -160,6 +159,11 @@ fn broadcast(message: &[u8], index: usize, clients_array: &ClientsNameArray, cli
             let stream_option = &mut *stream_mutex;
             let mut stream_i = stream_option[i].as_mut().unwrap().try_clone().expect("failed to clone a stream");
 
+            let name_i = get_client_name_at_position_i(&index, &clients_array);
+            if name_i.is_some()
+            {
+                stream_i.write_all(&name_i.unwrap()).expect("Failed to write name to the stream");
+            }
             stream_i.write_all(message).expect("Failed to send data through a stream");
         }
     }
@@ -237,10 +241,11 @@ fn check_join_u8(input: &[u8]) -> bool {
     check_command_u8("JOIN", input)
 }
 
-fn handle_join(input: &[u8], index: usize, clients_array: ClientsNameArray) {
+fn handle_join(input: &[u8], index: usize, clients_array: &ClientsNameArray) {
     println!("Detected JOIN command {input:?}"); // TODO: remove just for debugging
 
     // TODO: add check to verify the user has not JOINed previosly
+
     let (_, name) = first_2_words(std::str::from_utf8(input).unwrap());
     if name.is_some()
     {
@@ -255,7 +260,8 @@ fn handle_join(input: &[u8], index: usize, clients_array: ClientsNameArray) {
         }
 
         {
-            let mut array_clients = clients_array.lock().unwrap();
+            let clients = Arc::clone(clients_array);
+            let mut array_clients = clients.lock().unwrap();
             array_clients[index] = Some(client_name);
         }
 
@@ -264,12 +270,12 @@ fn handle_join(input: &[u8], index: usize, clients_array: ClientsNameArray) {
     }
 }
 
-fn get_client_name_at_position_i<'a>(index: usize, clients_array: &'a ClientsNameArray) -> Option<[u8; MAX_NAME_LEN]> {
+fn get_client_name_at_position_i(index: &usize, clients_array: &ClientsNameArray) -> Option<[u8; MAX_NAME_LEN]> {
 
     let name_array_clone = Arc::clone(&clients_array);
     let name_array_mutex = name_array_clone.lock().unwrap();
     let name_array : [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_array_mutex;
-    let name_i : Option<[u8; MAX_NAME_LEN]> = name_array[index];
+    let name_i : Option<[u8; MAX_NAME_LEN]> = name_array[*index];
     name_i
     //std::str::from_utf8(name_i);
     //if name_i.is_some()
@@ -280,21 +286,18 @@ fn get_client_name_at_position_i<'a>(index: usize, clients_array: &'a ClientsNam
     //None
 }
 
-fn server_chat_output(input: &[u8], index: usize, size: usize, clients_array: ClientsNameArray)
+fn server_chat_output(input: &[u8], index: &usize, size: usize, clients_array: &ClientsNameArray)
 {
     let user_name : [u8; MAX_NAME_LEN] = Default::default();
     // output in stdout
     {
-        let name_array_clone = Arc::clone(&clients_array);
-        let name_array_mutex = name_array_clone.lock().unwrap();
-        let name_array : [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_array_mutex;
-        let name_i : Option<[u8; MAX_NAME_LEN]> = name_array[index];
+        let name_i = get_client_name_at_position_i(index, &clients_array);
         if name_i.is_some()
         {
             let name = name_i.unwrap();
             let name_str = str::from_utf8(&name).unwrap().to_string().trim_matches(char::from(0));
             //print!("[{}]", str::from_utf8(&name).unwrap().to_string().trim_matches(char::from(0)));
-            let user_name = name.clone();
+            let user_name = name.clone(); // TODO can I remove clone()? 
             print!("[{}] ", std::str::from_utf8(&user_name).unwrap().trim_matches(char::from(0)));
         }
     }
