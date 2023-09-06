@@ -19,6 +19,7 @@
 // https://stevedonovan.github.io/rust-gentle-intro/7-shared-and-networking.html#a-better-way-to-resolve-addresses
 // https://stackoverflow.com/questions/63350694/what-are-the-lifetimes-of-while-loop-arguments-using-a-mutex
 // https://www.sitepoint.com/rust-global-variables/
+// https://profpatsch.de/notes/rust-string-conversions
 
 use std::thread;
 use std::net::{TcpListener, TcpStream, Shutdown};
@@ -141,6 +142,8 @@ fn handle_commands(input: &[u8], index: usize, clients_array: &ClientsNameArray,
 
     } else if check_who(str_input) {
         handle_who(clients_array);
+    } else if check_leave(str_input) {
+        handle_leave(index, clients_array, stream_array);
     } else {
         broadcast(input, index, clients_array, stream_array);
     }
@@ -159,9 +162,9 @@ fn broadcast(message: &[u8], index: usize, clients_array: &ClientsNameArray, cli
             let name_i = get_client_name_at_position_i(&index, &clients_array);
             if name_i.is_some()
             {
-                stream_i.write_all(&String::from("[").as_bytes());
+                stream_i.write_all(&String::from("[").as_bytes()).expect("Failed to write name to the stream");
                 stream_i.write_all(&name_i.unwrap()).expect("Failed to write name to the stream");
-                stream_i.write_all(&String::from("] ").as_bytes());
+                stream_i.write_all(&String::from("] ").as_bytes()).expect("Failed to write name to the stream");
             }
             stream_i.write_all(message).expect("Failed to send data through a stream");  // TODO:
                                                                                          // move
@@ -289,10 +292,13 @@ fn get_client_name_at_position_i(index: &usize, clients_array: &ClientsNameArray
     //None
 }
 
-fn remove_client_i(index: &usize, clients_array: &ClientsNameArray) {
+fn remove_client_i(index: &usize, clients_array: &ClientsNameArray, stream_array: &ClientsStreamArray) {
     let clients = Arc::clone(clients_array);
     let mut array_clients = clients.lock().unwrap();
     array_clients[*index] = None;
+    let stream = Arc::clone(stream_array);
+    let mut stream_client = stream.lock().unwrap();
+    stream_client[*index] = None;
 }
 
 fn server_chat_output(input: &[u8], index: &usize, size: usize, clients_array: &ClientsNameArray)
@@ -329,6 +335,10 @@ fn check_who(input: &str) -> bool {
     check_command("WHO", input)
 }
 
+fn check_leave(input: &str) -> bool {
+    check_command("LEAVE", input)
+}
+
 fn handle_who(clients_array: &ClientsNameArray) {
 
     let name_array_clone = Arc::clone(clients_array);
@@ -338,6 +348,14 @@ fn handle_who(clients_array: &ClientsNameArray) {
         if name.is_some() {
             println!("{}", str::from_utf8(&name.unwrap()).unwrap().to_string().trim_matches(char::from(0)));
         }
+    }
+}
+
+fn handle_leave(index: usize, clients_array: &ClientsNameArray, stream_array: &ClientsStreamArray) {
+    let name_i = get_client_name_at_position_i(&index, &clients_array);
+    if name_i.is_some() {
+        remove_client_i(&index, clients_array, stream_array);
+        println!("{} has left the chat", str::from_utf8(&name_i.unwrap()).unwrap());
     }
 }
 
