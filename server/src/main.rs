@@ -90,7 +90,6 @@ fn main() {
 
                         break; //once the new connection is registered, end the loop.
                     }
-
                 }
                 println!("vector clients after the loop on clients: {:?}", clients_streams);
             },
@@ -139,9 +138,8 @@ fn handle_commands(input: &[u8], index: usize, clients_array: &ClientsNameArray,
     if check_join_u8(input) {
         let _indice : usize = index;               // TODO: simplify name
         handle_join(input, _indice, clients_array);
-
     } else if check_who(str_input) {
-        handle_who(clients_array);
+        handle_who(index, clients_array, stream_array);
     } else if check_leave(str_input) {
         handle_leave(index, clients_array, stream_array);
     } else {
@@ -165,6 +163,7 @@ fn broadcast(message: &[u8], index: usize, clients_array: &ClientsNameArray, cli
                 stream_i.write_all(&String::from("[").as_bytes()).expect("Failed to write name to the stream");
                 stream_i.write_all(&name_i.unwrap()).expect("Failed to write name to the stream");
                 stream_i.write_all(&String::from("] ").as_bytes()).expect("Failed to write name to the stream");
+                // TODO: maybe we can use format!() or write!()
             }
             stream_i.write_all(message).expect("Failed to send data through a stream");  // TODO:
                                                                                          // move
@@ -172,6 +171,18 @@ fn broadcast(message: &[u8], index: usize, clients_array: &ClientsNameArray, cli
                                                                                          // the
                                                                                          // guard
         }
+    }
+}
+
+fn send_msg_to_ith_client(message: &[u8], index: usize, clients_array: &ClientsNameArray, clients_streams : &ClientsStreamArray)
+{
+    let clients_streams = Arc::clone(&clients_streams);
+    let mut stream_mutex = clients_streams.lock().unwrap();
+    let stream_option = &mut *stream_mutex;
+    if stream_option[index].is_some() {
+        let mut stream_i = stream_option[index].as_mut().unwrap().try_clone().expect("failed to clone a stream");
+            stream_i.write_all(message).expect("Failed to send data through a stream");
+            stream_i.write_all(String::from('\n').as_bytes()).expect("Failed endline");
     }
 }
 
@@ -339,7 +350,7 @@ fn check_leave(input: &str) -> bool {
     check_command("LEAVE", input)
 }
 
-fn handle_who(clients_array: &ClientsNameArray) {
+fn handle_who(index: usize, clients_array: &ClientsNameArray, clients_streams: &ClientsStreamArray) {
 
     let name_array_clone = Arc::clone(clients_array);
     let name_arrays_mutex = name_array_clone.lock().unwrap();
@@ -347,6 +358,7 @@ fn handle_who(clients_array: &ClientsNameArray) {
     for name in name_arrays {
         if name.is_some() {
             println!("{}", str::from_utf8(&name.unwrap()).unwrap().to_string().trim_matches(char::from(0)));
+            send_msg_to_ith_client(&name.unwrap(), index, &name_array_clone, clients_streams)
         }
     }
 }
@@ -356,6 +368,7 @@ fn handle_leave(index: usize, clients_array: &ClientsNameArray, stream_array: &C
     if name_i.is_some() {
         remove_client_i(&index, clients_array, stream_array);
         println!("{} has left the chat", str::from_utf8(&name_i.unwrap()).unwrap());
+        // TODO: need to broadcast to others that someone has leave the chat-> use broadcast()
     }
 }
 
