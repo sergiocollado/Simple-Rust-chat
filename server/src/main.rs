@@ -21,19 +21,19 @@
 // https://www.sitepoint.com/rust-global-variables/
 // https://profpatsch.de/notes/rust-string-conversions
 
-use std::thread;
-use std::net::{TcpListener, TcpStream, Shutdown};
-use std::io::{Read, Write};
 use std::env;
+use std::io::{Read, Write};
+use std::net::{Shutdown, TcpListener, TcpStream};
 use std::process;
-use std::sync::{Arc, Mutex};
 use std::str;
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 const MAX_CLIENTS: usize = 20; // max clients cannot be >32, because the way the array initialization is done
 const MAX_NAME_LEN: usize = 20;
 const MAX_MESSAGE_SIZE: usize = 512;
 const _MAX_HOSTNAME_SIZE: usize = 50;
-const _VERSION: &str = "Simple Rust Chat Server v0.1\n";
+const VERSION: &[u8] = b"Simple Rust Chat Server v0.1\n";
 // https://www.sitepoint.com/rust-global-variables/
 // https://www.howtosolutions.net/2022/12/rust-create-global-variable-mutable-struct-without-unsafe-code-block/
 
@@ -41,7 +41,6 @@ type ClientsStreamArray = Arc<Mutex<[Option<TcpStream>; MAX_CLIENTS]>>;
 type ClientsNameArray = Arc<Mutex<[Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS]>>;
 
 fn main() {
-
     let args: Vec<String> = env::args().collect();
 
     verify_arguments(&args);
@@ -54,30 +53,35 @@ fn main() {
     // The primary downside to this method is it only works for arrays up to size 32.
     assert!(MAX_CLIENTS < 32);
 
-    let clients_streams : ClientsStreamArray = Arc::new(Mutex::new(Default::default()));
-    let clients_names : ClientsNameArray = Arc::new(Mutex::new([None; MAX_CLIENTS]));
+    let clients_streams: ClientsStreamArray = Arc::new(Mutex::new(Default::default()));
+    let clients_names: ClientsNameArray = Arc::new(Mutex::new([None; MAX_CLIENTS]));
 
     // create a listening socket
     let listener = TcpListener::bind("0.0.0.0:".to_owned() + port).expect("Error: Bind failed!");
 
-    loop { // you could do the same without a loop with `listener.incomming()`.
-        match listener.accept() {                    // new connection accepted
+    loop {
+        // you could do the same without a loop with `listener.incomming()`.
+        match listener.accept() {
+            // new connection accepted
             Ok((stream, addr)) => {
                 println!("New connection accepted: :{:?}, {:?}", stream, addr);
 
                 for i in 0..MAX_CLIENTS {
-
-                   // if clients_streams[i].is_none() // this is just for debugging. TODO: remove
-                   // {
-                   //     println!("Debug log: vector clients: {:?}", clients_streams);
-                   // }
+                    // if clients_streams[i].is_none() // this is just for debugging. TODO: remove
+                    // {
+                    //     println!("Debug log: vector clients: {:?}", clients_streams);
+                    // }
 
                     if clients_streams.lock().unwrap()[i].is_none() {
                         println!("New client: pos({}): {:?}", i, addr);
 
-                        {   //include/update this stream, in the array of clientsStreams
-                            clients_streams.lock().unwrap()[i]
-                                = Some(stream.try_clone().expect("failure trying to clone a stream"));
+                        {
+                            //include/update this stream, in the array of clientsStreams
+                            clients_streams.lock().unwrap()[i] = Some(
+                                stream
+                                    .try_clone()
+                                    .expect("failure trying to clone a stream"),
+                            );
                         }
 
                         let client_names_array = Arc::clone(&clients_names);
@@ -91,12 +95,15 @@ fn main() {
                         break; //once the new connection is registered, end the loop.
                     }
                 }
-                println!("vector clients after the loop on clients: {:?}", clients_streams);
-            },
+                println!(
+                    "vector clients after the loop on clients: {:?}",
+                    clients_streams
+                );
+            }
             Err(error) => {
                 println!("Error: couldn't get client {error:?}");
-                break
-            },
+                break;
+            }
         }
     }
 
@@ -104,13 +111,15 @@ fn main() {
     drop(listener);
 }
 
-fn handle_client(mut stream: TcpStream, index: usize,
-                 clients_array: ClientsNameArray,
-                 stream_array: &ClientsStreamArray) {
+fn handle_client(
+    mut stream: TcpStream,
+    index: usize,
+    clients_array: ClientsNameArray,
+    stream_array: &ClientsStreamArray,
+) {
     let mut data = [0 as u8; MAX_MESSAGE_SIZE]; // using 512 byte buffer
     while match stream.read(&mut data) {
         Ok(size) => {
-
             //println!("INPUT DATA: {:?}", data); // TODO: remove, just for debugging
 
             server_chat_output(&data, &index, size, &clients_array);
@@ -122,72 +131,107 @@ fn handle_client(mut stream: TcpStream, index: usize,
 
             data = [0; MAX_MESSAGE_SIZE]; // clean the buffer for the next inter
             true
-        },
+        }
         Err(_) => {
-            println!("An error ocurred, terminating connection with {:?}", stream); stream.shutdown(Shutdown::Both).unwrap();
+            println!("An error ocurred, terminating connection with {:?}", stream);
+            stream.shutdown(Shutdown::Both).unwrap();
             //TODO: this means the socket was broken the client must be removed from the lists.
             false
         }
     } {}
 }
 
-fn handle_commands(input: &[u8], index: usize, clients_array: &ClientsNameArray, stream_array: &ClientsStreamArray)
-{
+fn handle_commands(
+    input: &[u8],
+    index: usize,
+    clients_array: &ClientsNameArray,
+    stream_array: &ClientsStreamArray,
+) {
     let str_input = str::from_utf8(input).unwrap();
 
     if check_join_u8(input) {
-        let _indice : usize = index;               // TODO: simplify name
+        let _indice: usize = index; // TODO: simplify name
         handle_join(input, _indice, clients_array);
     } else if check_who(str_input) {
         handle_who(index, clients_array, stream_array);
     } else if check_leave(str_input) {
         handle_leave(index, clients_array, stream_array);
+    } else if check_version(str_input) {
+        handle_version(index, clients_array, stream_array);
     } else {
         broadcast(input, index, clients_array, stream_array);
     }
 }
 
-fn broadcast(message: &[u8], index: usize, clients_array: &ClientsNameArray, clients_streams : &ClientsStreamArray)
-{
+fn broadcast(
+    message: &[u8],
+    index: usize,
+    clients_array: &ClientsNameArray,
+    clients_streams: &ClientsStreamArray,
+) {
     for i in 0..MAX_CLIENTS {
-        if i != index && clients_array.lock().unwrap()[i].is_some() && clients_streams.lock().unwrap()[i].is_some() {
-
+        if i != index
+            && clients_array.lock().unwrap()[i].is_some()
+            && clients_streams.lock().unwrap()[i].is_some()
+        {
             let clients_streams = Arc::clone(&clients_streams);
             let mut stream_mutex = clients_streams.lock().unwrap();
             let stream_option = &mut *stream_mutex;
-            let mut stream_i = stream_option[i].as_mut().unwrap().try_clone().expect("failed to clone a stream");
+            let mut stream_i = stream_option[i]
+                .as_mut()
+                .unwrap()
+                .try_clone()
+                .expect("failed to clone a stream");
 
             let name_i = get_client_name_at_position_i(&index, &clients_array);
-            if name_i.is_some()
-            {
-                stream_i.write_all(&String::from("[").as_bytes()).expect("Failed to write name to the stream");
-                stream_i.write_all(&name_i.unwrap()).expect("Failed to write name to the stream");
-                stream_i.write_all(&String::from("] ").as_bytes()).expect("Failed to write name to the stream");
+            if name_i.is_some() {
+                stream_i
+                    .write_all(&String::from("[").as_bytes())
+                    .expect("Failed to write name to the stream");
+                stream_i
+                    .write_all(&name_i.unwrap())
+                    .expect("Failed to write name to the stream");
+                stream_i
+                    .write_all(&String::from("] ").as_bytes())
+                    .expect("Failed to write name to the stream");
                 // TODO: maybe we can use format!() or write!()
             }
-            stream_i.write_all(message).expect("Failed to send data through a stream");  // TODO:
-                                                                                         // move
-                                                                                         // into
-                                                                                         // the
-                                                                                         // guard
+            stream_i
+                .write_all(message)
+                .expect("Failed to send data through a stream"); // TODO:
+                                                                 // move
+                                                                 // into
+                                                                 // the
+                                                                 // guard
         }
     }
 }
 
-fn send_msg_to_ith_client(message: &[u8], index: usize, clients_array: &ClientsNameArray, clients_streams : &ClientsStreamArray)
-{
+fn send_msg_to_ith_client(
+    message: &[u8],
+    index: usize,
+    clients_array: &ClientsNameArray,
+    clients_streams: &ClientsStreamArray,
+) {
     let clients_streams = Arc::clone(&clients_streams);
     let mut stream_mutex = clients_streams.lock().unwrap();
     let stream_option = &mut *stream_mutex;
     if stream_option[index].is_some() {
-        let mut stream_i = stream_option[index].as_mut().unwrap().try_clone().expect("failed to clone a stream");
-            stream_i.write_all(message).expect("Failed to send data through a stream");
-            stream_i.write_all(String::from('\n').as_bytes()).expect("Failed endline");
+        let mut stream_i = stream_option[index]
+            .as_mut()
+            .unwrap()
+            .try_clone()
+            .expect("failed to clone a stream");
+        stream_i
+            .write_all(message)
+            .expect("Failed to send data through a stream");
+        stream_i
+            .write_all(String::from('\n').as_bytes())
+            .expect("Failed endline");
     }
 }
 
 fn verify_arguments(args: &Vec<String>) {
-
     println!("arguments: {:?}", args);
 
     if args.len() == 0 {
@@ -204,16 +248,14 @@ fn verify_arguments(args: &Vec<String>) {
 fn first_word(s: &str) -> &str {
     let bytes = s.as_bytes();
 
-    std::str::from_utf8(first_word_u8(&bytes))
-        .expect("fn first_word: wrong conversion u8 -> str")
+    std::str::from_utf8(first_word_u8(&bytes)).expect("fn first_word: wrong conversion u8 -> str")
 }
 
 fn first_word_u8(s: &[u8]) -> &[u8] {
-    let mut i1 : usize = 0;
+    let mut i1: usize = 0;
 
     for (i, &item) in s.iter().enumerate() {
-        if !(item == b' ' || item == b'\t' || item == b'\n' || item == b'\r')
-        {
+        if !(item == b' ' || item == b'\t' || item == b'\n' || item == b'\r') {
             i1 = i;
             break;
         }
@@ -222,8 +264,7 @@ fn first_word_u8(s: &[u8]) -> &[u8] {
     let s2 = &s[i1..];
 
     for (i, &item) in s2.iter().enumerate() {
-        if item == b' ' || item == b'\t' || item == b'\n' || item == b'\r'
-        {
+        if item == b' ' || item == b'\t' || item == b'\n' || item == b'\r' {
             let i2 = i1 + i;
             std::str::from_utf8(&s[i1..i2]).unwrap();
             return &s[i1..i2];
@@ -264,14 +305,12 @@ fn handle_join(input: &[u8], index: usize, clients_array: &ClientsNameArray) {
     // TODO: add check to verify the user has not JOINed previosly
 
     let (_, name) = first_2_words(std::str::from_utf8(input).unwrap());
-    if name.is_some()
-    {
+    if name.is_some() {
         let name = name.unwrap();
 
-        let mut client_name : [u8; MAX_NAME_LEN] = [0; MAX_NAME_LEN];
+        let mut client_name: [u8; MAX_NAME_LEN] = [0; MAX_NAME_LEN];
         let mut i: usize = 0;
-        while i < MAX_NAME_LEN && i < name.as_bytes().len()
-        {
+        while i < MAX_NAME_LEN && i < name.as_bytes().len() {
             client_name[i] = name.as_bytes()[i];
             i = i + 1;
         }
@@ -287,12 +326,14 @@ fn handle_join(input: &[u8], index: usize, clients_array: &ClientsNameArray) {
     }
 }
 
-fn get_client_name_at_position_i(index: &usize, clients_array: &ClientsNameArray) -> Option<[u8; MAX_NAME_LEN]> {
-
+fn get_client_name_at_position_i(
+    index: &usize,
+    clients_array: &ClientsNameArray,
+) -> Option<[u8; MAX_NAME_LEN]> {
     let name_array_clone = Arc::clone(&clients_array);
     let name_array_mutex = name_array_clone.lock().unwrap();
-    let name_array : [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_array_mutex;
-    let name_i : Option<[u8; MAX_NAME_LEN]> = name_array[*index];
+    let name_array: [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_array_mutex;
+    let name_i: Option<[u8; MAX_NAME_LEN]> = name_array[*index];
     name_i
     //std::str::from_utf8(name_i);
     //if name_i.is_some()
@@ -303,7 +344,11 @@ fn get_client_name_at_position_i(index: &usize, clients_array: &ClientsNameArray
     //None
 }
 
-fn remove_client_i(index: &usize, clients_array: &ClientsNameArray, stream_array: &ClientsStreamArray) {
+fn remove_client_i(
+    index: &usize,
+    clients_array: &ClientsNameArray,
+    stream_array: &ClientsStreamArray,
+) {
     let clients = Arc::clone(clients_array);
     let mut array_clients = clients.lock().unwrap();
     array_clients[*index] = None;
@@ -312,34 +357,44 @@ fn remove_client_i(index: &usize, clients_array: &ClientsNameArray, stream_array
     stream_client[*index] = None;
 }
 
-fn server_chat_output(input: &[u8], index: &usize, size: usize, clients_array: &ClientsNameArray)
-{
-    let user_name : [u8; MAX_NAME_LEN] = Default::default();
+fn server_chat_output(input: &[u8], index: &usize, size: usize, clients_array: &ClientsNameArray) {
+    let user_name: [u8; MAX_NAME_LEN] = Default::default();
     // output in stdout
     {
         let name_i = get_client_name_at_position_i(index, &clients_array);
-        if name_i.is_some()
-        {
+        if name_i.is_some() {
             let name = name_i.unwrap();
-            let name_str = str::from_utf8(&name).unwrap().to_string().trim_matches(char::from(0));
+            let name_str = str::from_utf8(&name)
+                .unwrap()
+                .to_string()
+                .trim_matches(char::from(0));
             //print!("[{}]", str::from_utf8(&name).unwrap().to_string().trim_matches(char::from(0)));
             let user_name = name.clone(); // TODO can I remove clone()?
-            print!("[{}] ", std::str::from_utf8(&user_name).unwrap().trim_matches(char::from(0)));
+            print!(
+                "[{}] ",
+                std::str::from_utf8(&user_name)
+                    .unwrap()
+                    .trim_matches(char::from(0))
+            );
         }
     }
 
-    let user_name_str = std::str::from_utf8(&user_name).unwrap().trim_matches(char::from(0));
+    let user_name_str = std::str::from_utf8(&user_name)
+        .unwrap()
+        .trim_matches(char::from(0));
 
     // TODO: here we have to broadcast to the rest of the clients the message
 
-   //for (i, client) in name_array.iter().enumerate() {
-   //     // loop all the names
-   //     if i != index {
-   //         let array_names_clone = Arc::clone(&clients_array);
-   //         let array_name_mutex = array_names_mutex; }
-   //}
+    //for (i, client) in name_array.iter().enumerate() {
+    //     // loop all the names
+    //     if i != index {
+    //         let array_names_clone = Arc::clone(&clients_array);
+    //         let array_name_mutex = array_names_mutex; }
+    //}
 
-    std::io::stdout().write_all(&input[0..size]).expect("Error writing to stdout");
+    std::io::stdout()
+        .write_all(&input[0..size])
+        .expect("Error writing to stdout");
 }
 
 fn check_who(input: &str) -> bool {
@@ -350,14 +405,27 @@ fn check_leave(input: &str) -> bool {
     check_command("LEAVE", input)
 }
 
-fn handle_who(index: usize, clients_array: &ClientsNameArray, clients_streams: &ClientsStreamArray) {
+fn check_version(input: &str) -> bool {
+    check_command("VERSION", input)
+}
 
+fn handle_who(
+    index: usize,
+    clients_array: &ClientsNameArray,
+    clients_streams: &ClientsStreamArray,
+) {
     let name_array_clone = Arc::clone(clients_array);
     let name_arrays_mutex = name_array_clone.lock().unwrap();
-    let name_arrays : [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_arrays_mutex;
+    let name_arrays: [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_arrays_mutex;
     for name in name_arrays {
         if name.is_some() {
-            println!("{}", str::from_utf8(&name.unwrap()).unwrap().to_string().trim_matches(char::from(0)));
+            println!(
+                "{}",
+                str::from_utf8(&name.unwrap())
+                    .unwrap()
+                    .to_string()
+                    .trim_matches(char::from(0))
+            );
             send_msg_to_ith_client(&name.unwrap(), index, &name_array_clone, clients_streams)
         }
     }
@@ -367,8 +435,32 @@ fn handle_leave(index: usize, clients_array: &ClientsNameArray, stream_array: &C
     let name_i = get_client_name_at_position_i(&index, &clients_array);
     if name_i.is_some() {
         remove_client_i(&index, clients_array, stream_array);
-        println!("{} has left the chat", str::from_utf8(&name_i.unwrap()).unwrap());
+        println!(
+            "{} has left the chat",
+            str::from_utf8(&name_i.unwrap()).unwrap()
+        );
         // TODO: need to broadcast to others that someone has leave the chat-> use broadcast()
+    }
+}
+
+fn handle_version(
+    index: usize,
+    clients_array: &ClientsNameArray,
+    clients_streams: &ClientsStreamArray,
+) {
+    let name_array_clone = Arc::clone(clients_array);
+    let name_arrays_mutex = name_array_clone.lock().unwrap();
+    let name_arrays: [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_arrays_mutex;
+    if name_arrays[index].is_some() {
+        // send version
+            println!(
+                "{}",
+                str::from_utf8(VERSION)
+                    .unwrap()
+                    .to_string()
+                    .trim_matches(char::from(0))
+            );
+            send_msg_to_ith_client(VERSION, index, &name_array_clone, clients_streams)
     }
 }
 
@@ -413,7 +505,7 @@ mod tests {
     fn verify_first_2_words_with_initial_space() {
         let my_string = String::from("    Hello    World!");
         let (word1, word2) = first_2_words(&my_string);
-        assert_eq!(Some("Hello") , word1);
+        assert_eq!(Some("Hello"), word1);
         assert_eq!(Some("World!"), word2);
     }
 
@@ -421,7 +513,7 @@ mod tests {
     fn verify_first_2_words_with_initial_space_2() {
         let my_string = String::from("\tHello\tWorld!");
         let (word1, word2) = first_2_words(&my_string);
-        assert_eq!(Some("Hello") , word1);
+        assert_eq!(Some("Hello"), word1);
         assert_eq!(Some("World!"), word2);
     }
 
@@ -429,7 +521,7 @@ mod tests {
     fn verify_first_2_words_with_initial_space_3() {
         let my_string = String::from(" \t Hello \t World!");
         let (word1, word2) = first_2_words(&my_string);
-        assert_eq!(Some("Hello") , word1);
+        assert_eq!(Some("Hello"), word1);
         assert_eq!(Some("World!"), word2);
     }
 
