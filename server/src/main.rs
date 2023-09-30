@@ -151,7 +151,7 @@ fn handle_commands(
 
     if check_join_u8(input) {
         let _indice: usize = index; // TODO: simplify name
-        handle_join(input, _indice, clients_array);
+        handle_join(input, _indice, clients_array, stream_array);
     } else if check_who(str_input) {
         handle_who(index, clients_array, stream_array);
     } else if check_leave(str_input) {
@@ -231,6 +231,32 @@ fn send_msg_to_ith_client(
     }
 }
 
+fn broadcast_msg_to_other_names(
+    message: &[u8],
+    index: usize,
+    clients_array: &ClientsNameArray,
+    clients_streams: &ClientsStreamArray,
+) {
+    let name_array_clone = Arc::clone(clients_array);
+    let name_arrays_mutex = name_array_clone.lock().unwrap();
+    let name_arrays: [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_arrays_mutex;
+    for (i, &name) in name_arrays.iter().enumerate() {
+        if name.is_some() {
+            if index != i
+            {
+                println!(
+                "{}",
+                str::from_utf8(&name.unwrap())
+                    .unwrap()
+                    .to_string()
+                    .trim_matches(char::from(0))
+                );
+                send_msg_to_ith_client(message, i, &name_array_clone, clients_streams)
+            }
+        }
+    }
+}
+
 fn verify_arguments(args: &Vec<String>) {
     println!("arguments: {:?}", args);
 
@@ -299,7 +325,7 @@ fn check_join_u8(input: &[u8]) -> bool {
     check_command_u8("JOIN", input)
 }
 
-fn handle_join(input: &[u8], index: usize, clients_array: &ClientsNameArray) {
+fn handle_join(input: &[u8], index: usize, clients_array: &ClientsNameArray, clients_streams: &ClientsStreamArray) {
     println!("Detected JOIN command {input:?}"); // TODO: remove just for debugging
 
     // TODO: add check to verify the user has not JOINed previosly
@@ -323,6 +349,7 @@ fn handle_join(input: &[u8], index: usize, clients_array: &ClientsNameArray) {
 
         println!("{} has joined the chat", name);
         // TODO broadcast new join to the clients
+        broadcast_msg_to_other_names(name.as_bytes(), index, clients_array, clients_streams);
     }
 }
 
