@@ -57,7 +57,8 @@ fn main() {
     let clients_names: ClientsNameArray = Arc::new(Mutex::new([None; MAX_CLIENTS]));
 
     // create a listening socket
-    let listener = TcpListener::bind("0.0.0.0:".to_owned() + port).expect("\nError: Bind failed!\n");
+    let listener =
+        TcpListener::bind("0.0.0.0:".to_owned() + port).expect("\nError: Bind failed!\n");
 
     loop {
         // you could do the same without a loop with `listener.incomming()`.
@@ -244,14 +245,13 @@ fn broadcast_msg_to_other_names(
     let name_arrays: [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_arrays_mutex;
     for (i, &name) in name_arrays.iter().enumerate() {
         if name.is_some() {
-            if current_index != i
-            {
+            if current_index != i {
                 println!(
-                "{}",
-                str::from_utf8(&name.unwrap())
-                    .unwrap()
-                    .to_string()
-                    .trim_matches(char::from(0))
+                    "{}",
+                    str::from_utf8(&name.unwrap())
+                        .unwrap()
+                        .to_string()
+                        .trim_matches(char::from(0))
                 );
                 send_msg_to_ith_client(message, i, &name_array_clone, clients_streams)
             }
@@ -327,7 +327,12 @@ fn check_join_u8(input: &[u8]) -> bool {
     check_command_u8("JOIN", input)
 }
 
-fn handle_join(input: &[u8], index: usize, clients_array: &ClientsNameArray, clients_streams: &ClientsStreamArray) {
+fn handle_join(
+    input: &[u8],
+    index: usize,
+    clients_array: &ClientsNameArray,
+    clients_streams: &ClientsStreamArray,
+) {
     println!("Detected JOIN command {input:?}"); // TODO: remove just for debugging
 
     // TODO: add check to verify the user has not JOINed previosly
@@ -352,7 +357,7 @@ fn handle_join(input: &[u8], index: usize, clients_array: &ClientsNameArray, cli
 
         println!("{} has joined the chat", name);
         // TODO broadcast new join to the clients
-        let mut join_msg : String = String::new();
+        let mut join_msg: String = String::new();
         join_msg.push_str(str::from_utf8(&client_name).unwrap());
         join_msg.push_str(" has joined the chat");
         broadcast_msg_to_other_names(join_msg.as_bytes(), index, clients_array, clients_streams);
@@ -388,7 +393,11 @@ fn remove_client_i(
     array_clients[*index] = None;
     let stream = Arc::clone(stream_array);
     let mut stream_client = stream.lock().unwrap();
-    stream_client[*index].as_mut().unwrap().shutdown(Shutdown::Both).expect("Unable to shutdown the stream");
+    stream_client[*index]
+        .as_mut()
+        .unwrap()
+        .shutdown(Shutdown::Both)
+        .expect("Unable to shutdown the stream");
     stream_client[*index] = None;
 }
 
@@ -474,7 +483,7 @@ fn handle_leave(index: usize, clients_array: &ClientsNameArray, stream_array: &C
         let name = name_i.unwrap();
         let name_str = std::str::from_utf8(&name[..]).unwrap();
         println!("{} has left the chat", &name_str);
-        let mut leave_msg : String = String::new();
+        let mut leave_msg: String = String::new();
         leave_msg.push_str(&name_str);
         leave_msg.push_str(" has left the chat");
         broadcast_msg_to_other_names(leave_msg.as_bytes(), index, clients_array, stream_array);
@@ -493,14 +502,14 @@ fn handle_version(
     let name_arrays: [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_arrays_mutex;
     if name_arrays[index].is_some() {
         // send version
-            println!(
-                "{}",
-                str::from_utf8(VERSION)
-                    .unwrap()
-                    .to_string()
-                    .trim_matches(char::from(0))
-            );
-            send_msg_to_ith_client(VERSION, index, &name_array_clone, clients_streams)
+        println!(
+            "{}",
+            str::from_utf8(VERSION)
+                .unwrap()
+                .to_string()
+                .trim_matches(char::from(0))
+        );
+        send_msg_to_ith_client(VERSION, index, &name_array_clone, clients_streams)
     }
 }
 
