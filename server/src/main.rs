@@ -57,7 +57,7 @@ fn main() {
     let clients_names: ClientsNameArray = Arc::new(Mutex::new([None; MAX_CLIENTS]));
 
     // create a listening socket
-    let listener = TcpListener::bind("0.0.0.0:".to_owned() + port).expect("Error: Bind failed!");
+    let listener = TcpListener::bind("0.0.0.0:".to_owned() + port).expect("\nError: Bind failed!\n");
 
     loop {
         // you could do the same without a loop with `listener.incomming()`.
@@ -76,7 +76,7 @@ fn main() {
                         println!("New client: pos({}): {:?}", i, addr);
 
                         {
-                            //include/update this stream, in the array of clientsStreams
+                            // include/update this stream, in the array of clientsStreams
                             clients_streams.lock().unwrap()[i] = Some(
                                 stream
                                     .try_clone()
@@ -233,7 +233,7 @@ fn send_msg_to_ith_client(
 
 fn broadcast_msg_to_other_names(
     message: &[u8],
-    index: usize,
+    current_index: usize,
     clients_array: &ClientsNameArray,
     clients_streams: &ClientsStreamArray,
 ) {
@@ -242,7 +242,7 @@ fn broadcast_msg_to_other_names(
     let name_arrays: [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_arrays_mutex;
     for (i, &name) in name_arrays.iter().enumerate() {
         if name.is_some() {
-            if index != i
+            if current_index != i
             {
                 println!(
                 "{}",
@@ -261,12 +261,12 @@ fn verify_arguments(args: &Vec<String>) {
     println!("arguments: {:?}", args);
 
     if args.len() == 0 {
-        println!("usage is: ./tcp_server <port number> \ni.e.: ./tcp_server 1153");
+        println!("Inconrrect number of arguments. Usage is: ./tcp_server <port number> \ni.e.: ./tcp_server 1153");
         process::exit(1);
     }
 
     if args.len() > 2 {
-        println!("usage is: ./tcp_server <port number> \ni.e.: ./tcp_server 1153");
+        println!("Incorrect number of arguments. Usage is: ./tcp_server <port number> \ni.e.: ./tcp_server 1153");
         process::exit(1);
     }
 }
@@ -334,6 +334,7 @@ fn handle_join(input: &[u8], index: usize, clients_array: &ClientsNameArray, cli
     if name.is_some() {
         let name = name.unwrap();
 
+        // copy the name to the client's name array
         let mut client_name: [u8; MAX_NAME_LEN] = [0; MAX_NAME_LEN];
         let mut i: usize = 0;
         while i < MAX_NAME_LEN && i < name.as_bytes().len() {
@@ -349,7 +350,10 @@ fn handle_join(input: &[u8], index: usize, clients_array: &ClientsNameArray, cli
 
         println!("{} has joined the chat", name);
         // TODO broadcast new join to the clients
-        broadcast_msg_to_other_names(name.as_bytes(), index, clients_array, clients_streams);
+        let mut join_msg : String = String::new();
+        join_msg.push_str(str::from_utf8(&client_name).unwrap());
+        join_msg.push_str(" has joined the chat");
+        broadcast_msg_to_other_names(join_msg.as_bytes(), index, clients_array, clients_streams);
     }
 }
 
@@ -376,11 +380,13 @@ fn remove_client_i(
     clients_array: &ClientsNameArray,
     stream_array: &ClientsStreamArray,
 ) {
+    // TODO: remvoce *index
     let clients = Arc::clone(clients_array);
     let mut array_clients = clients.lock().unwrap();
     array_clients[*index] = None;
     let stream = Arc::clone(stream_array);
     let mut stream_client = stream.lock().unwrap();
+    stream_client[*index].as_mut().unwrap().shutdown(Shutdown::Both).expect("Unable to shutdown the stream");
     stream_client[*index] = None;
 }
 
@@ -461,11 +467,14 @@ fn handle_who(
 fn handle_leave(index: usize, clients_array: &ClientsNameArray, stream_array: &ClientsStreamArray) {
     let name_i = get_client_name_at_position_i(&index, &clients_array);
     if name_i.is_some() {
+        //remove_client_i(&index, clients_array, stream_array);
+        let name_str = std::str::from_utf8(&name_i.unwrap()).unwrap();
+        println!("{} has left the chat", &name_str);
+        let mut leave_msg : String = String::new();
+        leave_msg.push_str(&name_str);
+        leave_msg.push_str(" has left the chat");
+        broadcast_msg_to_other_names(leave_msg.as_bytes(), index, clients_array, stream_array);
         remove_client_i(&index, clients_array, stream_array);
-        println!(
-            "{} has left the chat",
-            str::from_utf8(&name_i.unwrap()).unwrap()
-        );
         // TODO: need to broadcast to others that someone has leave the chat-> use broadcast()
     }
 }
