@@ -149,9 +149,11 @@ fn handle_commands(
 ) {
     let str_input = str::from_utf8(input).unwrap();
 
+    // TODO: make pattern matching
     if check_join_u8(input) {
         let _indice: usize = index; // TODO: simplify name
         handle_join(input, _indice, clients_array, stream_array);
+    // TODO: to the rest of the command should only have access fi it is an user
     } else if check_who(str_input) {
         handle_who(index, clients_array, stream_array);
     } else if check_leave(str_input) {
@@ -447,6 +449,7 @@ fn handle_who(
     clients_array: &ClientsNameArray,
     clients_streams: &ClientsStreamArray,
 ) {
+    //TODO: check it is a valid user
     let name_array_clone = Arc::clone(clients_array);
     let name_arrays_mutex = name_array_clone.lock().unwrap();
     let name_arrays: [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_arrays_mutex;
@@ -468,7 +471,8 @@ fn handle_leave(index: usize, clients_array: &ClientsNameArray, stream_array: &C
     let name_i = get_client_name_at_position_i(&index, &clients_array);
     if name_i.is_some() {
         //remove_client_i(&index, clients_array, stream_array);
-        let name_str = std::str::from_utf8(&name_i.unwrap()).unwrap();
+        let name = name_i.unwrap();
+        let name_str = std::str::from_utf8(&name[..]).unwrap();
         println!("{} has left the chat", &name_str);
         let mut leave_msg : String = String::new();
         leave_msg.push_str(&name_str);
