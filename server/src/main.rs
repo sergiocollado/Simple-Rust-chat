@@ -382,11 +382,15 @@ fn get_client_name_at_position_i(
     //None
 }
 
+fn has_user_joined(index: &usize, clients_array: &ClientsNameArray) -> bool {
+    get_client_name_at_position_i(index, clients_array).is_some()
+}
+
 fn remove_client_i(
     index: &usize,
     clients_array: &ClientsNameArray,
     stream_array: &ClientsStreamArray,
-) {
+) -> () {
     // TODO: remvoce *index
     let clients = Arc::clone(clients_array);
     let mut array_clients = clients.lock().unwrap();
