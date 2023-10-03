@@ -37,6 +37,7 @@ const VERSION: &[u8] = b"Simple Rust Chat Server v0.1\n";
 // https://www.sitepoint.com/rust-global-variables/
 // https://www.howtosolutions.net/2022/12/rust-create-global-variable-mutable-struct-without-unsafe-code-block/
 
+// TODO: create a structure for this
 type ClientsStreamArray = Arc<Mutex<[Option<TcpStream>; MAX_CLIENTS]>>;
 type ClientsNameArray = Arc<Mutex<[Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS]>>;
 
@@ -53,6 +54,7 @@ fn main() {
     // The primary downside to this method is it only works for arrays up to size 32.
     assert!(MAX_CLIENTS < 32);
 
+    // TODO: create a structure for this
     let clients_streams: ClientsStreamArray = Arc::new(Mutex::new(Default::default()));
     let clients_names: ClientsNameArray = Arc::new(Mutex::new([None; MAX_CLIENTS]));
 
@@ -188,24 +190,19 @@ fn broadcast(
 
             let name_i = get_client_name_at_position_i(&index, &clients_array);
             if name_i.is_some() {
+                let msg = format!(
+                    "[{}] {}",
+                    str::from_utf8(&name_i.unwrap()[..]).unwrap(),
+                    str::from_utf8(&message).unwrap()
+                );
                 stream_i
-                    .write_all(&String::from("[").as_bytes())
-                    .expect("Failed to write name to the stream");
-                stream_i
-                    .write_all(&name_i.unwrap())
-                    .expect("Failed to write name to the stream");
-                stream_i
-                    .write_all(&String::from("] ").as_bytes())
-                    .expect("Failed to write name to the stream");
-                // TODO: maybe we can use format!() or write!()
+                    .write_all(msg.as_bytes())
+                    .expect("Failed to send data through a stream"); // TODO:
+                                                                     // move
+                                                                     // into
+                                                                     // the
+                                                                     // guard
             }
-            stream_i
-                .write_all(message)
-                .expect("Failed to send data through a stream"); // TODO:
-                                                                 // move
-                                                                 // into
-                                                                 // the
-                                                                 // guard
         }
     }
 }
@@ -356,10 +353,10 @@ fn handle_join(
         }
 
         println!("{} has joined the chat", name);
-        // TODO broadcast new join to the clients
-        let mut join_msg: String = String::new();
-        join_msg.push_str(str::from_utf8(&client_name).unwrap());
-        join_msg.push_str(" has joined the chat");
+        let join_msg = format!(
+            "{} has joined the chat",
+            str::from_utf8(&client_name).unwrap()
+        );
         broadcast_msg_to_other_names(join_msg.as_bytes(), index, clients_array, clients_streams);
     }
 }
@@ -492,7 +489,6 @@ fn handle_leave(index: usize, clients_array: &ClientsNameArray, stream_array: &C
         leave_msg.push_str(" has left the chat");
         broadcast_msg_to_other_names(leave_msg.as_bytes(), index, clients_array, stream_array);
         remove_client_i(&index, clients_array, stream_array);
-        // TODO: need to broadcast to others that someone has leave the chat-> use broadcast()
     }
 }
 
