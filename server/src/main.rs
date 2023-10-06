@@ -153,18 +153,28 @@ fn handle_commands(
     let str_input = str::from_utf8(input).unwrap();
 
     // TODO: make pattern matching
-    if check_join_u8(input) {
-        let _indice: usize = index; // TODO: simplify name
-        handle_join(input, _indice, clients_array, stream_array);
-    // TODO: to the rest of the command should only have access fi it is an user
-    } else if check_who(str_input) {
-        handle_who(index, clients_array, stream_array);
-    } else if check_leave(str_input) {
-        handle_leave(index, clients_array, stream_array);
-    } else if check_version(str_input) {
-        handle_version(index, clients_array, stream_array);
-    } else {
-        broadcast(input, index, clients_array, stream_array);
+    if has_user_joined(index, clients_array) == false
+    {
+        if check_join_u8(input) {
+            let _indice: usize = index; // TODO: simplify name
+            handle_join(input, _indice, clients_array, stream_array);
+        // TODO: to the rest of the command should only have access fi it is an user
+        } else if check_version(str_input) {
+            handle_version(index, clients_array, stream_array);
+        } else if check_leave(str_input) {
+            handle_leave(index, clients_array, stream_array);
+        }
+    }
+    else {
+        if check_who(str_input) {
+            handle_who(index, clients_array, stream_array);
+        } else if check_leave(str_input) {
+            handle_leave(index, clients_array, stream_array);
+        } else if check_version(str_input) {
+            handle_version(index, clients_array, stream_array);
+        } else {
+            broadcast(input, index, clients_array, stream_array);
+        }
     }
 }
 
@@ -365,6 +375,7 @@ fn get_client_name_at_position_i(
     index: &usize,
     clients_array: &ClientsNameArray,
 ) -> Option<[u8; MAX_NAME_LEN]> {
+    // TODO: remove the &usize
     let name_array_clone = Arc::clone(&clients_array);
     let name_array_mutex = name_array_clone.lock().unwrap();
     let name_array: [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_array_mutex;
@@ -379,8 +390,8 @@ fn get_client_name_at_position_i(
     //None
 }
 
-fn has_user_joined(index: &usize, clients_array: &ClientsNameArray) -> bool {
-    get_client_name_at_position_i(index, clients_array).is_some()
+fn has_user_joined(index: usize, clients_array: &ClientsNameArray) -> bool {
+    get_client_name_at_position_i(&index, clients_array).is_some()
 }
 
 fn remove_client_i(
@@ -488,6 +499,8 @@ fn handle_leave(index: usize, clients_array: &ClientsNameArray, stream_array: &C
         leave_msg.push_str(&name_str);
         leave_msg.push_str(" has left the chat");
         broadcast_msg_to_other_names(leave_msg.as_bytes(), index, clients_array, stream_array);
+        remove_client_i(&index, clients_array, stream_array);
+    } else {
         remove_client_i(&index, clients_array, stream_array);
     }
 }
