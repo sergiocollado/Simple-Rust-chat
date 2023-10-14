@@ -22,12 +22,14 @@
 // https://profpatsch.de/notes/rust-string-conversions
 
 use std::env;
-use std::io::{Read, Write};
+use std::io::{Read, Write, Error};
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::process;
 use std::str;
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::fmt;
+use std::error::Error as OtherError;
 
 const MAX_CLIENTS: usize = 20; // max clients cannot be >32, because the way the array initialization is done
 const MAX_NAME_LEN: usize = 20;
@@ -92,7 +94,7 @@ fn main() {
 
                         thread::spawn(move || {
                             // connection suceeded
-                            handle_client(stream, i, client_names_array, &client_stream_array);
+                            handle_client(stream, i, client_names_array, &client_stream_array).unwrap_or_else(|error| eprintln!("At handle_client: {:?}", error));
                         });
 
                         break; //once the new connection is registered, end the loop.
@@ -102,7 +104,7 @@ fn main() {
                     "vector clients after the loop on clients: {:?}",
                     clients_streams
                 );
-            }
+            },
             Err(error) => {
                 println!("Error: couldn't get client {error:?}");
                 break;
@@ -119,29 +121,29 @@ fn handle_client(
     index: usize,
     clients_array: ClientsNameArray,
     stream_array: &ClientsStreamArray,
-) {
+) -> Result<(), ClientLeavedError> {
     let mut data = [0 as u8; MAX_MESSAGE_SIZE]; // using 512 byte buffer
-    while match stream.read(&mut data) {
-        Ok(size) => {
+    loop {
+            let size = stream.read(&mut data).expect("error when reading the stream");
             //println!("INPUT DATA: {:?}", data); // TODO: remove, just for debugging
+            println!(" *_* ");
+            println!("size is {}", size);
+            //if size == 0
+            //{
+            //    println!("breaking the loop");
+            //    break;
+            //}
 
             server_chat_output(&data, &index, size, &clients_array);
 
-            let clients = Arc::clone(&clients_array);
-            handle_commands(&data, index, &clients, stream_array);
+            //let clients = Arc::clone(&clients_array);
+            handle_commands(&data, index, &clients_array, stream_array)?;
 
             //TODO: check the borrowing of those clients!
 
             data = [0; MAX_MESSAGE_SIZE]; // clean the buffer for the next inter
-            true
-        }
-        Err(_) => {
-            println!("An error ocurred, terminating connection with {:?}", stream);
-            stream.shutdown(Shutdown::Both).unwrap();
-            //TODO: this means the socket was broken the client must be removed from the lists.
-            false
-        }
-    } {}
+    }
+    
 }
 
 fn handle_commands(
@@ -149,7 +151,7 @@ fn handle_commands(
     index: usize,
     clients_array: &ClientsNameArray,
     stream_array: &ClientsStreamArray,
-) {
+) -> Result<(), ClientLeavedError> {
     let str_input = str::from_utf8(input).unwrap();
 
     // TODO: make pattern matching
@@ -162,20 +164,21 @@ fn handle_commands(
         } else if check_version(str_input) {
             handle_version(index, clients_array, stream_array);
         } else if check_leave(str_input) {
-            handle_leave(index, clients_array, stream_array);
+            handle_leave(index, clients_array, stream_array)?;
         }
     }
     else {
         if check_who(str_input) {
             handle_who(index, clients_array, stream_array);
         } else if check_leave(str_input) {
-            handle_leave(index, clients_array, stream_array);
+            handle_leave(index, clients_array, stream_array)?;
         } else if check_version(str_input) {
             handle_version(index, clients_array, stream_array);
         } else {
             broadcast(input, index, clients_array, stream_array);
         }
     }
+    Ok(())
 }
 
 fn broadcast(
@@ -488,7 +491,33 @@ fn handle_who(
     }
 }
 
-fn handle_leave(index: usize, clients_array: &ClientsNameArray, stream_array: &ClientsStreamArray) {
+
+// reference: https://stevedonovan.github.io/rust-gentle-intro/6-error-handling.html
+#[derive(Debug)]
+struct ClientLeavedError {
+    details: String
+}
+
+impl ClientLeavedError {
+    fn new(msg: &str) -> ClientLeavedError {
+        ClientLeavedError{ details: msg.to_string()}
+    }
+}
+
+impl fmt::Display for ClientLeavedError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.details)
+    }
+}
+
+impl OtherError for ClientLeavedError {
+    fn description(&self) -> &str {
+        &self.details
+    }
+}
+
+fn handle_leave(index: usize, clients_array: &ClientsNameArray, stream_array: &ClientsStreamArray)
+-> Result<(), ClientLeavedError> {
     let name_i = get_client_name_at_position_i(&index, &clients_array);
     if name_i.is_some() {
         //remove_client_i(&index, clients_array, stream_array);
@@ -500,9 +529,12 @@ fn handle_leave(index: usize, clients_array: &ClientsNameArray, stream_array: &C
         leave_msg.push_str(" has left the chat");
         broadcast_msg_to_other_names(leave_msg.as_bytes(), index, clients_array, stream_array);
         remove_client_i(&index, clients_array, stream_array);
+        Err(ClientLeavedError::new(&name_str))
     } else {
         remove_client_i(&index, clients_array, stream_array);
+        Ok(())
     }
+
 }
 
 fn handle_version(
