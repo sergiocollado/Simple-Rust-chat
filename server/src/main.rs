@@ -73,11 +73,6 @@ fn main() {
                 println!("New connection accepted: :{:?}, {:?}", stream, addr);
 
                 for i in 0..MAX_CLIENTS {
-                    // if clients_streams[i].is_none() // this is just for debugging. TODO: remove
-                    // {
-                    //     println!("Debug log: vector clients: {:?}", clients_streams);
-                    // }
-
                     // check for an empty spot on the clients array
                     if clients_streams.lock().unwrap()[i].is_none() {
                         println!("New client: pos({}): {:?}", i, addr);
@@ -130,9 +125,8 @@ fn handle_client(
         let size = stream
             .read(&mut data)
             .expect("error when reading the stream");
-        //println!("INPUT DATA: {:?}", data); // TODO: remove, just for debugging
 
-        server_chat_output(&data, &index, size, &clients_array);
+        server_chat_output(&data, index, size, &clients_array);
 
         handle_commands(&data, index, clients_array, stream_array)?;
 
@@ -183,7 +177,7 @@ fn broadcast(
                     .try_clone()
                     .expect("failed to clone a stream");
 
-                let name_i = get_client_name_at_position_i(&index, &clients_array);
+                let name_i = get_client_name_at_position_i(index, &clients_array);
                 if name_i.is_some() {
                     let msg = format!(
                         "[{}] {}",
@@ -321,10 +315,6 @@ fn handle_join(
     clients_array: &ClientsNameArray,
     clients_streams: &ClientsStreamArray,
 ) {
-    println!("Detected JOIN command {input:?}"); // TODO: remove just for debugging
-
-    // TODO: add check to verify the user has not JOINed previosly
-
     if is_user_registered(index, clients_array) == false {
         let (_, name) = first_2_words(std::str::from_utf8(input).unwrap());
         if name.is_some() {
@@ -358,30 +348,25 @@ fn handle_join(
         }
     } else {
         // TODO: send messsage to user, to tell you cannont join again
+        //
+        //send_msg_to_ith_client(message, i, &name_array_clone, clients_streams)
     }
 }
 
 fn get_client_name_at_position_i(
-    index: &usize,
+    index: usize,
     clients_array: &ClientsNameArray,
 ) -> Option<[u8; MAX_NAME_LEN]> {
     // TODO: remove the &usize
     let name_array_clone = Arc::clone(&clients_array);
     let name_array_mutex = name_array_clone.lock().unwrap();
     let name_array: [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_array_mutex;
-    let name_i: Option<[u8; MAX_NAME_LEN]> = name_array[*index];
+    let name_i: Option<[u8; MAX_NAME_LEN]> = name_array[index];
     name_i
-    //std::str::from_utf8(name_i);
-    //if name_i.is_some()
-    //{
-    //    let name = name_i.unwrap();
-    //    return Some(std::str::from_utf8(&name).unwrap().trim_matches(char::from(0)));
-    //}
-    //None
 }
 
 fn is_user_registered(index: usize, clients_array: &ClientsNameArray) -> bool {
-    get_client_name_at_position_i(&index, clients_array).is_some()
+    get_client_name_at_position_i(index, clients_array).is_some()
 }
 
 fn remove_client_i(
@@ -403,7 +388,7 @@ fn remove_client_i(
     stream_client[*index] = None;
 }
 
-fn server_chat_output(input: &[u8], index: &usize, size: usize, clients_array: &ClientsNameArray) {
+fn server_chat_output(input: &[u8], index: usize, size: usize, clients_array: &ClientsNameArray) {
     let user_name: [u8; MAX_NAME_LEN] = Default::default();
     {
         let name_i = get_client_name_at_position_i(index, &clients_array);
@@ -459,8 +444,7 @@ fn handle_who(
     clients_array: &ClientsNameArray,
     clients_streams: &ClientsStreamArray,
 ) {
-    //TODO: check it is a valid user
-    if is_user_registered(index, clients_array) == true {
+    if is_user_registered(index, clients_array) {
         let name_array_clone = Arc::clone(clients_array);
         let name_arrays_mutex = name_array_clone.lock().unwrap();
         let name_arrays: [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_arrays_mutex;
@@ -510,7 +494,7 @@ fn handle_leave(
     clients_array: &ClientsNameArray,
     stream_array: &ClientsStreamArray,
 ) -> Result<(), ClientLeavedError> {
-    let name_i = get_client_name_at_position_i(&index, &clients_array);
+    let name_i = get_client_name_at_position_i(index, &clients_array);
     if name_i.is_some() {
         //remove_client_i(&index, clients_array, stream_array);
         let name = name_i.unwrap();
