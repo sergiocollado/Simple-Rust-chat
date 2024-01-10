@@ -110,10 +110,12 @@ fn main() {
         }
     }
 
-    // close the socket server;
-    drop(listener);
+    drop(listener);  // close the socket server;
 }
 
+// handle the chat client. This funtion will run in a independent thread,
+// will check the incomming messages, check for the different commads, and
+// execute those commands.
 fn handle_client(
     mut stream: TcpStream,
     index: usize,
@@ -134,6 +136,7 @@ fn handle_client(
     }
 }
 
+// handle the different implemented commands
 fn handle_commands(
     input: &[u8],
     index: usize,
@@ -156,6 +159,8 @@ fn handle_commands(
     Ok(())
 }
 
+// send a given message to all the other chat clients except for the
+// one who send the message.
 fn broadcast(
     message: &[u8],
     index: usize,
@@ -193,6 +198,7 @@ fn broadcast(
     }
 }
 
+// send a given message to the ith chat client.
 fn send_msg_to_ith_client(
     message: &[u8],
     index: usize,
@@ -217,9 +223,10 @@ fn send_msg_to_ith_client(
     }
 }
 
+// send a message to all the chat clients except for the ith client.
 fn broadcast_msg_to_other_names(
     message: &[u8],
-    current_index: usize,
+    client_index: usize,
     clients_array: &ClientsNameArray,
     clients_streams: &ClientsStreamArray,
 ) {
@@ -228,7 +235,7 @@ fn broadcast_msg_to_other_names(
     let name_arrays: [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_arrays_mutex;
     for (i, &name) in name_arrays.iter().enumerate() {
         if name.is_some() {
-            if current_index != i {
+            if client_index != i {
                 println!(
                     "{}",
                     str::from_utf8(&name.unwrap())
@@ -320,9 +327,12 @@ fn handle_join(
         if name.is_some() {
             let name = name.unwrap();
 
+            // TODO: check if the name already exists in the names_array.
+
             // copy the name to the client's name array
             let mut client_name: [u8; MAX_NAME_LEN] = [0; MAX_NAME_LEN];
             let mut i: usize = 0;
+            // copy the bytes into the name
             while i < MAX_NAME_LEN && i < name.as_bytes().len() {
                 client_name[i] = name.as_bytes()[i];
                 i = i + 1;
@@ -353,11 +363,11 @@ fn handle_join(
     }
 }
 
+// retrieve the name of the ith client from the array of names
 fn get_client_name_at_position_i(
     index: usize,
     clients_array: &ClientsNameArray,
 ) -> Option<[u8; MAX_NAME_LEN]> {
-    // TODO: remove the &usize
     let name_array_clone = Arc::clone(&clients_array);
     let name_array_mutex = name_array_clone.lock().unwrap();
     let name_array: [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_array_mutex;
@@ -365,41 +375,38 @@ fn get_client_name_at_position_i(
     name_i
 }
 
+// check if the user at ith position is already registered
 fn is_user_registered(index: usize, clients_array: &ClientsNameArray) -> bool {
     get_client_name_at_position_i(index, clients_array).is_some()
 }
 
+// remove client at ith position, and shut down socket connection if needed
 fn remove_client_i(
-    index: &usize,
+    index: usize,
     clients_array: &ClientsNameArray,
     stream_array: &ClientsStreamArray,
 ) -> () {
-    // TODO: remvoce *index
     let clients = Arc::clone(clients_array);
     let mut array_clients = clients.lock().unwrap();
-    array_clients[*index] = None;
+    array_clients[index] = None;
     let stream = Arc::clone(stream_array);
     let mut stream_client = stream.lock().unwrap();
-    stream_client[*index]
+    stream_client[index]
         .as_mut()
         .unwrap()
         .shutdown(Shutdown::Both)
         .expect("Unable to shutdown the stream");
-    stream_client[*index] = None;
+    stream_client[index] = None;
 }
 
+// repeat ith client's message inside the server.
 fn server_chat_output(input: &[u8], index: usize, size: usize, clients_array: &ClientsNameArray) {
     let user_name: [u8; MAX_NAME_LEN] = Default::default();
     {
         let name_i = get_client_name_at_position_i(index, &clients_array);
         if name_i.is_some() {
             let name = name_i.unwrap();
-            let name_str = str::from_utf8(&name)
-                .unwrap()
-                .to_string()
-                .trim_matches(char::from(0));
-            //print!("[{}]", str::from_utf8(&name).unwrap().to_string().trim_matches(char::from(0)));
-            let user_name = name.clone(); // TODO can I remove clone()?
+            let user_name = name;
             print!(
                 "[{}] ",
                 std::str::from_utf8(&user_name)
@@ -409,36 +416,27 @@ fn server_chat_output(input: &[u8], index: usize, size: usize, clients_array: &C
         }
     }
 
-    let user_name_str = std::str::from_utf8(&user_name)
-        .unwrap()
-        .trim_matches(char::from(0));
-
-    // TODO: here we have to broadcast to the rest of the clients the message
-
-    //for (i, client) in name_array.iter().enumerate() {
-    //     // loop all the names
-    //     if i != index {
-    //         let array_names_clone = Arc::clone(&clients_array);
-    //         let array_name_mutex = array_names_mutex; }
-    //}
-
     std::io::stdout()
         .write_all(&input[0..size])
         .expect("Error writing to stdout");
 }
 
+// check if the WHO command was issued
 fn check_who(input: &str) -> bool {
     check_command("WHO", input)
 }
 
+// check if the LEAVE command was issued.
 fn check_leave(input: &str) -> bool {
     check_command("LEAVE", input)
 }
 
+// check if the VERSION command was issued
 fn check_version(input: &str) -> bool {
     check_command("VERSION", input)
 }
 
+// WHO command: list registered participans
 fn handle_who(
     index: usize,
     clients_array: &ClientsNameArray,
@@ -489,6 +487,7 @@ impl OtherError for ClientLeavedError {
     }
 }
 
+// LEAVE command: removes the user from the chat, and close the connection.
 fn handle_leave(
     index: usize,
     clients_array: &ClientsNameArray,
@@ -496,7 +495,6 @@ fn handle_leave(
 ) -> Result<(), ClientLeavedError> {
     let name_i = get_client_name_at_position_i(index, &clients_array);
     if name_i.is_some() {
-        //remove_client_i(&index, clients_array, stream_array);
         let name = name_i.unwrap();
         let name_str = std::str::from_utf8(&name[..]).unwrap();
         println!("{} has left the chat", &name_str);
@@ -504,14 +502,15 @@ fn handle_leave(
         leave_msg.push_str(&name_str);
         leave_msg.push_str(" has left the chat");
         broadcast_msg_to_other_names(leave_msg.as_bytes(), index, clients_array, stream_array);
-        remove_client_i(&index, clients_array, stream_array);
+        remove_client_i(index, clients_array, stream_array);
         Err(ClientLeavedError::new(&name_str))
     } else {
-        remove_client_i(&index, clients_array, stream_array);
+        remove_client_i(index, clients_array, stream_array);
         Ok(())
     }
 }
 
+// VERSION command: reports the version of the program.
 fn handle_version(
     index: usize,
     clients_array: &ClientsNameArray,
