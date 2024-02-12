@@ -1,17 +1,17 @@
 use crate::aux::*;
-use crate::MAX_CLIENTS;
-use crate::MAX_MESSAGE_SIZE;
-use crate::VERSION;
-use crate::MAX_NAME_LEN;
 use crate::ClientsNameArray;
 use crate::ClientsStreamArray;
+use crate::MAX_CLIENTS;
+use crate::MAX_MESSAGE_SIZE;
+use crate::MAX_NAME_LEN;
+use crate::VERSION;
 
-use std::fmt;
-use std::sync::{Arc};
 use std::error::Error as OtherError;
-use std::net::{Shutdown, TcpStream};
+use std::fmt;
 use std::io::{Read, Write};
+use std::net::{Shutdown, TcpStream};
 use std::str;
+use std::sync::Arc;
 
 // handle the different implemented commands
 pub fn handle_commands(
@@ -336,7 +336,12 @@ pub fn is_user_registered(index: usize, clients_array: &ClientsNameArray) -> boo
 }
 
 // repeat ith client's message inside the server.
-pub fn server_chat_output(input: &[u8], index: usize, size: usize, clients_array: &ClientsNameArray) {
+pub fn server_chat_output(
+    input: &[u8],
+    index: usize,
+    size: usize,
+    clients_array: &ClientsNameArray,
+) {
     let user_name: [u8; MAX_NAME_LEN] = Default::default();
     {
         let name_i = get_client_name_at_position_i(index, &clients_array);
@@ -382,4 +387,3 @@ impl OtherError for ClientLeavedError {
         &self.details
     }
 }
-

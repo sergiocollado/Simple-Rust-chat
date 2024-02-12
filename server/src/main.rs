@@ -24,8 +24,8 @@
 use std::env;
 use std::net::{TcpListener, TcpStream};
 use std::process;
-use std::thread;
 use std::sync::{Arc, Mutex};
+use std::thread;
 
 pub mod aux;
 pub mod commands;
@@ -121,7 +121,7 @@ fn main() {
         }
     }
 
-    drop(listener);  // close the socket server;
+    drop(listener); // close the socket server;
 }
 
 #[cfg(test)]

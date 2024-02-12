@@ -32,4 +32,3 @@ pub fn first_2_words(s: &str) -> (Option<&str>, Option<&str>) {
     let word2 = iter.next();
     (word1, word2)
 }
-
