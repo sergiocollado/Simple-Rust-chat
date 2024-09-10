@@ -91,7 +91,8 @@ fn main() {
                     // check for an empty spot on the clients array
                     //
                     // TODO: try to remove all unwrap(), and use instead
-                    // expect(), or unwrap_or(), or better error handling
+                    // expect(), or unwrap_or(), ? operator, if let ...
+                    // or better error handling
                     if clients_streams.lock().unwrap()[i].is_none() {
                         println!("New client: pos({}): {:?}", i, addr);
 
