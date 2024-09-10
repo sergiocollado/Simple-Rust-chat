@@ -37,6 +37,8 @@ pub fn handle_commands(
 }
 
 pub fn check_command(command: &str, input: &str) -> bool {
+    // actually it coud be used the function .starts_with()
+    // ref: https://doc.rust-lang.org/std/primitive.slice.html#method.starts_with
     let first_word = first_word(input);
     command.trim() == first_word
 }
@@ -201,6 +203,8 @@ pub fn handle_client(
             .read(&mut data)
             .expect("error when reading the stream");
 
+        // TODO: FIXME: what happens when size is bigger than MAX_MESSAGE_SIZE?
+
         server_chat_output(&data, index, size, &clients_array);
 
         handle_commands(&data, index, clients_array, stream_array)?;
@@ -353,6 +357,7 @@ pub fn server_chat_output(
                 std::str::from_utf8(&user_name)
                     .unwrap()
                     .trim_matches(char::from(0))
+                // maybe it could be use also: String::from_utf8_lossy()
             );
         }
     }

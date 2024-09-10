@@ -1,6 +1,7 @@
 pub fn first_word(s: &str) -> &str {
     let bytes = s.as_bytes();
     std::str::from_utf8(first_word_u8(&bytes)).expect("fn first_word: wrong conversion u8 -> str")
+    // actually, it could be used the function: https://doc.rust-lang.org/std/primitive.slice.html#method.starts_with
 }
 
 pub fn first_word_u8(s: &[u8]) -> &[u8] {
