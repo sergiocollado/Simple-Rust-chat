@@ -222,6 +222,8 @@ pub fn broadcast(
     clients_streams: &ClientsStreamArray,
 ) {
     if is_user_registered(index, clients_array) {
+        // TODO: instead of iterate over MAX_CLIENTS iterate over the array
+        // i.e.: for (i, &name) in clients_arrays.iter().enumerate()?
         for i in 0..MAX_CLIENTS {
             if i != index
                 && clients_array.lock().unwrap()[i].is_some()
