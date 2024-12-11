@@ -21,6 +21,8 @@
 // https://www.sitepoint.com/rust-global-variables/
 // https://profpatsch.de/notes/rust-string-conversions
 
+// generate documentation with: cargo doc --no-deps --open
+
 use std::env;
 use std::net::{TcpListener, TcpStream};
 use std::process;
