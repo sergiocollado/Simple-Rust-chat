@@ -48,7 +48,7 @@ type ClientsNameArray = Arc<Mutex<[Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS]>>;
 fn verify_arguments(args: &Vec<String>) {
     println!("arguments: {:?}", args);
 
-    if args.len() == 0 {
+    if args.is_empty() {
         println!(">>> Incorrect number of arguments. Usage is: ./tcp_server <port number> \ni.e.: ./tcp_server 1153");
         process::exit(1);
     }

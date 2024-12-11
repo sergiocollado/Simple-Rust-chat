@@ -259,7 +259,7 @@ pub fn remove_client_i(
     index: usize,
     clients_array: &ClientsNameArray,
     stream_array: &ClientsStreamArray,
-) -> () {
+) {
     let clients = Arc::clone(clients_array);
     let mut array_clients = clients.lock().unwrap();
     array_clients[index] = None;
@@ -309,17 +309,15 @@ pub fn broadcast_msg_to_other_names(
     let name_arrays_mutex = name_array_clone.lock().unwrap();
     let name_arrays: [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_arrays_mutex;
     for (i, &name) in name_arrays.iter().enumerate() {
-        if name.is_some() {
-            if client_index != i {
-                println!(
-                    "{}",
-                    str::from_utf8(&name.unwrap())
-                        .unwrap()
-                        .to_string()
-                        .trim_matches(char::from(0))
-                );
-                send_msg_to_ith_client(message, i, &name_array_clone, clients_streams)
-            }
+        if name.is_some() && client_index != i {
+            println!(
+                "{}",
+                str::from_utf8(&name.unwrap())
+                    .unwrap()
+                    .to_string()
+                    .trim_matches(char::from(0))
+            );
+            send_msg_to_ith_client(message, i, &name_array_clone, clients_streams)
         }
     }
 }
