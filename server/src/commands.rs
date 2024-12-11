@@ -358,8 +358,7 @@ pub fn server_chat_output(
                 "[{}] ",
                 std::str::from_utf8(&user_name)
                     .unwrap()
-                    .trim_matches(char::from(0))
-                // maybe it could be use also: String::from_utf8_lossy()
+                    .trim_matches(char::from(0)) // maybe it could be use also: String::from_utf8_lossy()
             );
         }
     }
