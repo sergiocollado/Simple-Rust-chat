@@ -77,7 +77,7 @@ pub fn handle_leave(
     clients_array: &ClientsNameArray,
     stream_array: &ClientsStreamArray,
 ) -> Result<(), ClientLeavedError> {
-    let name_i = get_client_name_at_position_i(index, &clients_array);
+    let name_i = get_client_name_at_position_i(index, clients_array);
     if name_i.is_some() {
         let name = name_i.unwrap();
         let name_str = std::str::from_utf8(&name[..]).unwrap();
@@ -87,7 +87,7 @@ pub fn handle_leave(
         leave_msg.push_str(" has left the chat");
         broadcast_msg_to_other_names(leave_msg.as_bytes(), index, clients_array, stream_array);
         remove_client_i(index, clients_array, stream_array);
-        Err(ClientLeavedError::new(&name_str))
+        Err(ClientLeavedError::new(name_str))
     } else {
         remove_client_i(index, clients_array, stream_array);
         Ok(())
@@ -147,7 +147,7 @@ pub fn handle_join(
     clients_array: &ClientsNameArray,
     clients_streams: &ClientsStreamArray,
 ) {
-    if is_user_registered(index, clients_array) == false {
+    if !is_user_registered(index, clients_array) {
         let (_, name) = first_2_words(std::str::from_utf8(input).unwrap());
         if name.is_some() {
             let name = name.unwrap();
@@ -160,7 +160,7 @@ pub fn handle_join(
             // copy the bytes into the name
             while i < MAX_NAME_LEN && i < name.as_bytes().len() {
                 client_name[i] = name.as_bytes()[i];
-                i = i + 1;
+                i += 1;
             }
 
             {
@@ -197,7 +197,7 @@ pub fn handle_client(
     clients_array: &ClientsNameArray,
     stream_array: &ClientsStreamArray,
 ) -> Result<(), ClientLeavedError> {
-    let mut data = [0 as u8; MAX_MESSAGE_SIZE]; // using 512 byte buffer
+    let mut data = [0_u8; MAX_MESSAGE_SIZE]; // using 512 byte buffer
     loop {
         let size = stream
             .read(&mut data)
@@ -205,7 +205,7 @@ pub fn handle_client(
 
         // TODO: FIXME: what happens when size is bigger than MAX_MESSAGE_SIZE?
 
-        server_chat_output(&data, index, size, &clients_array);
+        server_chat_output(&data, index, size, clients_array);
 
         handle_commands(&data, index, clients_array, stream_array)?;
 
@@ -229,7 +229,7 @@ pub fn broadcast(
                 && clients_array.lock().unwrap()[i].is_some()
                 && clients_streams.lock().unwrap()[i].is_some()
             {
-                let clients_streams = Arc::clone(&clients_streams);
+                let clients_streams = Arc::clone(clients_streams);
                 let mut stream_mutex = clients_streams.lock().unwrap();
                 let stream_option = &mut *stream_mutex;
                 let mut stream_i = stream_option[i]
@@ -238,12 +238,12 @@ pub fn broadcast(
                     .try_clone()
                     .expect("failed to clone a stream");
 
-                let name_i = get_client_name_at_position_i(index, &clients_array);
+                let name_i = get_client_name_at_position_i(index, clients_array);
                 if name_i.is_some() {
                     let msg = format!(
                         "[{}] {}",
                         str::from_utf8(&name_i.unwrap()[..]).unwrap(),
-                        str::from_utf8(&message).unwrap()
+                        str::from_utf8(message).unwrap()
                     );
                     stream_i
                         .write_all(msg.as_bytes())
@@ -280,7 +280,7 @@ pub fn send_msg_to_ith_client(
     clients_array: &ClientsNameArray,
     clients_streams: &ClientsStreamArray,
 ) {
-    let clients_streams = Arc::clone(&clients_streams);
+    let clients_streams = Arc::clone(clients_streams);
     let mut stream_mutex = clients_streams.lock().unwrap();
     let stream_option = &mut *stream_mutex;
     if stream_option[index].is_some() {
@@ -327,7 +327,7 @@ pub fn get_client_name_at_position_i(
     index: usize,
     clients_array: &ClientsNameArray,
 ) -> Option<[u8; MAX_NAME_LEN]> {
-    let name_array_clone = Arc::clone(&clients_array);
+    let name_array_clone = Arc::clone(clients_array);
     let name_array_mutex = name_array_clone.lock().unwrap();
     let name_array: [Option<[u8; MAX_NAME_LEN]>; MAX_CLIENTS] = *name_array_mutex;
     let name_i: Option<[u8; MAX_NAME_LEN]> = name_array[index];
@@ -348,7 +348,7 @@ pub fn server_chat_output(
 ) {
     let user_name: [u8; MAX_NAME_LEN] = Default::default();
     {
-        let name_i = get_client_name_at_position_i(index, &clients_array);
+        let name_i = get_client_name_at_position_i(index, clients_array);
         if name_i.is_some() {
             let name = name_i.unwrap();
             let user_name = name;
