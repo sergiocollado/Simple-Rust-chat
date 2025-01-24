@@ -20,7 +20,7 @@ pub fn handle_commands(
     clients_array: &ClientsNameArray,
     stream_array: &ClientsStreamArray,
 ) -> Result<(), ClientLeavedError> {
-    let str_input = str::from_utf8(input).unwrap();
+    let str_input = str::from_utf8(input).unwrap(); // TODO: unwrap()-> ?
 
     if check_join_u8(input) {
         handle_join(input, index, clients_array, stream_array);
@@ -79,8 +79,8 @@ pub fn handle_leave(
 ) -> Result<(), ClientLeavedError> {
     let name_i = get_client_name_at_position_i(index, clients_array);
     if name_i.is_some() {
-        let name = name_i.unwrap();
-        let name_str = std::str::from_utf8(&name[..]).unwrap();
+        let name = name_i.unwrap(); // TODO: unwrap() -> ?
+        let name_str = std::str::from_utf8(&name[..]).unwrap(); // TODO: unwrap -> ?
         println!("{} has left the chat", &name_str);
         let mut leave_msg: String = String::new();
         leave_msg.push_str(&name_str);
@@ -223,7 +223,7 @@ pub fn broadcast(
 ) {
     if is_user_registered(index, clients_array) {
         // TODO: instead of iterate over MAX_CLIENTS iterate over the array
-        // i.e.: for (i, &name) in clients_arrays.iter().enumerate()?
+        // i.e.: for (i, &name) in clients_arrays.iter().enumerate()? // iter_into()?
         for i in 0..MAX_CLIENTS {
             if i != index
                 && clients_array.lock().unwrap()[i].is_some()
