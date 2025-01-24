@@ -37,7 +37,7 @@ pub fn handle_commands(
 }
 
 pub fn check_command(command: &str, input: &str) -> bool {
-    // actually it coud be used the function .starts_with()
+    // actually it could be used the function .starts_with()
     // ref: https://doc.rust-lang.org/std/primitive.slice.html#method.starts_with
     let first_word = first_word(input);
     command.trim() == first_word
