@@ -391,3 +391,10 @@ impl OtherError for ClientLeavedError {
         &self.details
     }
 }
+
+
+#[cfg(test)]  // this is to only compile it in the 'test' configuration
+mod tests {  // test ususally are defined in a local module at the end of the file
+
+    use super::*; //to include everything above in the file to test
+}

@@ -33,3 +33,10 @@ pub fn first_2_words(s: &str) -> (Option<&str>, Option<&str>) {
     let word2 = iter.next();
     (word1, word2)
 }
+
+
+#[cfg(test)]  // this is to only compile it in the 'test' configuration
+mod tests {  // test ususally are defined in a local module at the end of the file
+
+    use super::*; //to include everything above in the file to test
+}

@@ -133,7 +133,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
 
-    use super::*;
+    use super::*; //to include everything above in the file to test
 
     #[test]
     fn verify_command() {
